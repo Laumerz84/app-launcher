@@ -4,6 +4,35 @@ One small window that starts my own tools with one click, or all of them at
 once. Plain Python + tkinter, nothing to install. Everything lives in this
 folder (`F:\ClodCode\launcher`).
 
+## Recommended companions (optional)
+
+The launcher works on its own, but it was made alongside two tools that are
+worth having with it:
+
+- **[UtilityBelt](https://github.com/Laumerz84/utilitybelt)**: a terminal dashboard
+  for your PC and your Claude Code work (CPU, GPU, disks, sessions, costs).
+- **[UI Report Tool](https://github.com/Laumerz84/ui-report-tool)**: a tray app that
+  takes annotated screenshots and hands them to Claude Code (or anyone) in one paste.
+
+To add them, clone them next to this folder, set them up once, then let the
+launcher add itself the entries with the right paths for your PC:
+
+```
+cd ..
+git clone https://github.com/Laumerz84/utilitybelt.git
+git clone https://github.com/Laumerz84/ui-report-tool.git
+pip install -r utilitybelt\requirements.txt
+ui-report-tool\setup.bat
+cd launcher
+python add_companions.py
+```
+
+`add_companions.py` finds the two folders next to this one (or pass
+`--utilitybelt FOLDER` / `--ui-report-tool FOLDER` if they live elsewhere), adds
+a **UtilityBelt** and a **UI Report Tool** card, and replaces any old entries
+with those names. Everything else in `apps.json` is kept. UI Report Tool's
+**Stop** asks it to quit like its own tray Quit.
+
 ## Use it
 
 Start menu > **App Launcher** (right-click it > **Pin to taskbar** to keep it on
@@ -141,6 +170,7 @@ Vortex Street, Claude Museum, UtilityBelt Dash. Each has a `_note` saying so.
 | `apps.json` | the app list |
 | `launcher.ico`, `make_icon.py` | the icon and the script that draws it (`python make_icon.py`) |
 | `install-shortcut.ps1` | creates the one Start menu shortcut (`-Remove` deletes it) |
+| `add_companions.py` | adds UtilityBelt and UI Report Tool to `apps.json` with this PC's paths (see "Recommended companions") |
 | `applauncher/` | the code: `config` (apps.json), `commands` (launching), `procs` (running detection), `stop` (the Stop button's logic), `ui`, `gfx`, `theme`, `winutil`, `aumid` |
 | `tests/`, `run-tests.cmd` | unit tests (`run-tests.cmd`, or `python -m unittest discover -s tests`) |
 | `launcher.log` | a small rolling log (launches, problems with apps.json) |
