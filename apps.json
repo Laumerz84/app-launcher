@@ -1,0 +1,88 @@
+{
+  "_help": {
+    "about": "One entry per app in the 'apps' list below. Save the file and the launcher reloads it by itself. Keys starting with an underscore (like this _help) are comments and are ignored.",
+    "name": "Text shown on the button. Required.",
+    "command": "What to run. Required. An .exe / .cmd / .bat / .ps1 / .py / .pyw file, a program on PATH, or a document / web page to open with its default app (.html opens in your default browser, so does an https:// address). Environment variables like %USERPROFILE% are expanded.",
+    "args": "Optional. A list of arguments, one string per argument: [\"/c\", \"C:\\\\tools\\\\thing.cmd\"]. A single string is also accepted and passed as-is. Remember to double every backslash in JSON.",
+    "working_dir": "Optional. Folder the app starts in. If left out, the folder that holds the command is used.",
+    "icon": "Optional. A .ico / .exe / .dll file, or \"file,index\" to pick an icon inside an exe or dll (like Windows shortcuts do). If left out, the command's own icon is used when it is a normal program, otherwise a coloured letter badge is drawn.",
+    "needs_console": "Optional, true or false (default false). true gives the app its own new console window (for terminal programs). false starts it with no console.",
+    "window": "Optional: \"normal\" (default), \"minimized\" or \"hidden\". Only affects how the new process's first window is shown.",
+    "launch_all": "Optional, true (default) or false. false leaves this entry out of the Launch all button (its own button still works). Good for web pages, which cannot be detected as running.",
+    "stop_command": "Optional. How to ask this app to quit, in place of the launcher ending it itself. Same kinds of thing as command (a program, .cmd, .ps1, ...), started with no console. When the running dot shows and you click Stop twice, the launcher runs this, then waits up to 10 seconds for the app to disappear. It never force-kills afterwards: if the app is still there (perhaps asking about unsaved work) the launcher just says so. Without stop_command, Stop closes the app's windows politely, waits 2 seconds, then ends that app's processes and the processes they started (only the ones this entry's running dot recognises).",
+    "stop_args": "Optional. Arguments for stop_command, written the same way as args.",
+    "match": "Optional. Text (or a list of texts) that must all appear in a running process's command line for the running dot to light up, for example [\"belt.py\", \"--mini\"]. Normally worked out automatically from the command; set it when the dot never lights or lights wrongly.",
+    "_note": "Free text, ignored. Handy for reminding yourself why an entry is there."
+  },
+  "apps": [
+    {
+      "name": "UI Report Tool",
+      "command": "G:\\UI Report Tool\\.venv\\Scripts\\pythonw.exe",
+      "args": ["G:\\UI Report Tool\\launch.pyw"],
+      "working_dir": "G:\\UI Report Tool",
+      "icon": "G:\\UI Report Tool\\UIReportTool.ico",
+      "needs_console": false,
+      "match": ["ui report tool", "launch.pyw"],
+      "stop_command": "G:\\UI Report Tool\\.venv\\Scripts\\pythonw.exe",
+      "stop_args": ["G:\\UI Report Tool\\launch.pyw", "--quit"],
+      "_note": "Tray app; it refuses to run twice, so starting it again is harmless. The match also recognises other copies of the tool. Stop asks the running copy to quit (launch.pyw --quit, like its tray Quit item) instead of ending it."
+    },
+    {
+      "name": "UtilityBelt",
+      "command": "C:\\Users\\andre\\AppData\\Local\\Microsoft\\WindowsApps\\wt.exe",
+      "args": ["--focus", "-w", "new", "--title", "UtilityBelt", "-d", "F:\\ClodCode\\utilitybelt", "cmd", "/c", "F:\\ClodCode\\utilitybelt\\belt.cmd"],
+      "working_dir": "F:\\ClodCode\\utilitybelt",
+      "icon": "C:\\Windows\\System32\\imageres.dll,144",
+      "needs_console": false,
+      "match": ["utilitybelt\\belt.py"],
+      "_note": "Opens in a Windows Terminal window in focus mode (no title bar or tabs; Ctrl+Shift+P > Toggle focus mode brings them back, Alt+Space > Move moves it). wt.exe exits at once, so the dot looks for the dashboard's own python ...\\utilitybelt\\belt.py process (Mini runs a bare 'python belt.py --mini', so the two never mix). Stop ends that python; belt.cmd then finishes and the window closes."
+    },
+    {
+      "name": "UtilityBelt Mini",
+      "command": "C:\\Windows\\System32\\cmd.exe",
+      "args": ["/c", "F:\\ClodCode\\utilitybelt\\belt-mini.cmd"],
+      "working_dir": "F:\\ClodCode\\utilitybelt",
+      "icon": "C:\\Windows\\System32\\imageres.dll,144",
+      "needs_console": true,
+      "window": "minimized",
+      "match": ["belt.py", "--mini"],
+      "_note": "belt-mini.cmd opens its own Windows Terminal strip and exits, so the launching cmd window is started minimized (as in the Start menu shortcut) and the dot looks for 'belt.py --mini' instead."
+    },
+    {
+      "name": "Screener shell",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+      "args": ["-NoExit", "-ExecutionPolicy", "Bypass", "-Command", ". 'C:\\Users\\andre\\Python\\screener-jobs\\shell\\screener-shell.ps1'"],
+      "working_dir": "C:\\Users\\andre\\Python\\Screener-v2",
+      "icon": "C:\\Users\\andre\\Python\\screener-jobs\\shell\\screener.ico",
+      "needs_console": true
+    },
+    {
+      "name": "Fractal Flame",
+      "command": "F:\\ClodCode\\fractal-flame\\index.html",
+      "launch_all": false,
+      "_note": "Suggested addition - delete this entry if you don't want it. One self-contained page; opens in your default browser. Left out of Launch all (a page cannot be detected as running, so it would open again every time)."
+    },
+    {
+      "name": "Vortex Street",
+      "command": "F:\\ClodCode\\air\\vortexstreet.html",
+      "launch_all": false,
+      "_note": "Suggested addition - delete this entry if you don't want it. Browser page, left out of Launch all."
+    },
+    {
+      "name": "Claude Museum",
+      "command": "F:\\ClodCode\\museum\\museum-local.html",
+      "launch_all": false,
+      "_note": "Suggested addition - delete this entry if you don't want it. The local copy of the museum page (serve.js starts an optional local web server for it). Browser page, left out of Launch all."
+    },
+    {
+      "name": "UtilityBelt Dash",
+      "command": "C:\\Windows\\System32\\cmd.exe",
+      "args": ["/c", "F:\\ClodCode\\utilitybelt\\dash.cmd"],
+      "working_dir": "F:\\ClodCode\\utilitybelt",
+      "icon": "C:\\Windows\\System32\\imageres.dll,144",
+      "needs_console": true,
+      "launch_all": false,
+      "_note": "Suggested addition - delete this entry if you don't want it. The older one-screen dashboard (dash.cmd waits for a key at the end, so the window stays open). Left out of Launch all because UtilityBelt covers the same ground."
+    }
+  ]
+}
