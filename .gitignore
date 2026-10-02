@@ -1,0 +1,8 @@
+# Python
+__pycache__/
+*.pyc
+
+# Local state and test scratch, not source
+launcher.log
+.tmp/
+.pip-cache/
