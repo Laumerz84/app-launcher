@@ -73,9 +73,14 @@ class ShippedFileStopTests(unittest.TestCase):
         self.assertEqual(app.stop_command, r"G:\UI Report Tool\.venv\Scripts\pythonw.exe")
         self.assertEqual(app.stop_args, (r"G:\UI Report Tool\launch.pyw", "--quit"))
 
+    def test_sheets_quits_through_its_launcher(self):
+        app = self.apps["Sheets"]
+        self.assertTrue(app.stop_command.lower().endswith("pythonw.exe"))
+        self.assertEqual(app.stop_args[-1], "--quit")
+
     def test_the_other_entries_have_no_stop_command(self):
         for name, app in self.apps.items():
-            if name != "UI Report Tool":
+            if name not in ("UI Report Tool", "Sheets"):
                 self.assertEqual(app.stop_command, "", name)
 
     def test_the_readme_documents_stop(self):

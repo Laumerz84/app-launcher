@@ -174,12 +174,16 @@ class ShippedFileTests(unittest.TestCase):
         for field in ("name", "command", "args", "working_dir", "icon", "needs_console"):
             self.assertIn(field, self.raw["_help"])
 
-    def test_the_four_requested_apps_come_first_in_order(self):
+    def test_the_requested_apps_come_first_in_order(self):
         names = [a.name for a in self.result.apps]
-        self.assertEqual(names[:4], ["UI Report Tool", "UtilityBelt", "UtilityBelt Mini", "Screener shell"])
+        self.assertEqual(names[:5], ["UI Report Tool", "UtilityBelt", "UtilityBelt Mini", "Screener shell", "Sheets"])
+
+    def test_sheets_is_kept_out_of_launch_all(self):
+        sheets = next(a for a in self.result.apps if a.name == "Sheets")
+        self.assertFalse(sheets.launch_all)
 
     def test_suggested_entries_are_marked_and_kept_out_of_launch_all(self):
-        suggested = [a for a in self.result.apps[4:]]
+        suggested = [a for a in self.result.apps[5:]]
         self.assertTrue(suggested)
         for app in suggested:
             self.assertIn("Suggested", app.note, app.name)

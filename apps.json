@@ -57,6 +57,19 @@
       "needs_console": true
     },
     {
+      "name": "Sheets",
+      "command": "G:\\Sheets\\.venv\\Scripts\\pythonw.exe",
+      "args": ["G:\\Sheets\\launch.pyw"],
+      "working_dir": "G:\\Sheets",
+      "icon": "G:\\Sheets\\sheets.ico",
+      "needs_console": false,
+      "launch_all": false,
+      "match": ["sheets\\launch.pyw"],
+      "stop_command": "G:\\Sheets\\.venv\\Scripts\\pythonw.exe",
+      "stop_args": ["G:\\Sheets\\launch.pyw", "--quit"],
+      "_note": "Excel-style spreadsheet for CSV/Excel files (github.com/Laumerz84/sheets). Single instance: starting it again just opens another window. Stop runs launch.pyw --quit, which closes each window normally so unsaved work still asks to be saved. Left out of Launch all because it opens an empty workbook."
+    },
+    {
       "name": "Fractal Flame",
       "command": "F:\\ClodCode\\fractal-flame\\index.html",
       "launch_all": false,
