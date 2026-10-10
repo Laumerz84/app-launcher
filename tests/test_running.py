@@ -12,7 +12,7 @@ from applauncher.config import App
 from applauncher.procs import Proc
 
 UB = r"F:\ClodCode\utilitybelt"
-SHELL_PS1 = r"C:\Users\USERNAME\Python\screener-jobs\shell\screener-shell.ps1"
+SHELL_PS1 = os.path.expandvars(r"%USERPROFILE%\Python\screener-jobs\shell\screener-shell.ps1")
 
 
 def p(pid, name, cmdline="", exe=""):

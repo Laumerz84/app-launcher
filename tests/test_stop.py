@@ -45,8 +45,8 @@ def belt_world():
         # Screener shell
         P(300, "powershell.exe",
           r'''"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -NoExit -ExecutionPolicy Bypass '''
-          r'''-Command ". 'C:\Users\USERNAME\Python\screener-jobs\shell\screener-shell.ps1'"''', ppid=1),
-        P(301, "python.exe", r"C:\Users\USERNAME\Python\Screener-v2\.venv\Scripts\python.exe viewer.py", ppid=300),
+          r'''-Command ". (Join-Path $env:USERPROFILE 'Python\screener-jobs\shell\screener-shell.ps1')"''', ppid=1),
+        P(301, "python.exe", os.path.expandvars(r"%USERPROFILE%\Python\Screener-v2\.venv\Scripts\python.exe viewer.py"), ppid=300),
         # UI Report Tool: venv trampoline + real interpreter
         P(400, "pythonw.exe", r'"G:\UI Report Tool\.venv\Scripts\pythonw.exe" "G:\UI Report Tool\launch.pyw"', ppid=1),
         P(401, "pythonw.exe", r'"C:\Python\pythonw.exe" "G:\UI Report Tool\launch.pyw"', ppid=400),

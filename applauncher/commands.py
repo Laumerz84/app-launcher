@@ -131,9 +131,10 @@ def _find_file(command: str, cwd: Optional[str], check: bool, what: str) -> str:
 
 def _split_args(app: App) -> tuple[list[str], str]:
     """(args as a list, raw string) - exactly one of them is non-empty."""
+    extra = _expand_raw(app.options) if app.options else ""   # launch options go last, exactly as typed
     if isinstance(app.args, str):
-        return [], _expand_raw(app.args)
-    return [os.path.expandvars(a) for a in app.args], ""
+        return [], " ".join(t for t in (_expand_raw(app.args), extra) if t)
+    return [os.path.expandvars(a) for a in app.args], extra
 
 
 def _expand_raw(text: str) -> str:

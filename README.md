@@ -1,18 +1,21 @@
 # App Launcher
 
-One small window that starts my own tools with one click, or all of them at
-once. Plain Python + tkinter, nothing to install. Everything lives in this
+One small window that starts my own tools with one click. Plain Python + tkinter, nothing to install. Everything lives in this
 folder (`F:\ClodCode\launcher`).
 
 ## Recommended companions (optional)
 
-The launcher works on its own, but it was made alongside two tools that are
+The launcher works on its own, but it was made alongside four tools that are
 worth having with it:
 
 - **[UtilityBelt](https://github.com/Laumerz84/utilitybelt)**: a terminal dashboard
   for your PC and your Claude Code work (CPU, GPU, disks, sessions, costs).
 - **[UI Report Tool](https://github.com/Laumerz84/ui-report-tool)**: a tray app that
   takes annotated screenshots and hands them to Claude Code (or anyone) in one paste.
+- **[Ekxel](https://github.com/Laumerz84/sheets)**: an Excel-style spreadsheet
+  (opens .xlsx/.xls/.csv) with a Claude chat panel that can edit the open workbook.
+- **[Codebase Dashboard](https://github.com/Laumerz84/codebase-dashboard)**: point it at a
+  folder and see its code stats and git activity in your browser.
 
 To add them, clone them next to this folder, set them up once, then let the
 launcher add itself the entries with the right paths for your PC:
@@ -21,17 +24,20 @@ launcher add itself the entries with the right paths for your PC:
 cd ..
 git clone https://github.com/Laumerz84/utilitybelt.git
 git clone https://github.com/Laumerz84/ui-report-tool.git
+git clone https://github.com/Laumerz84/sheets.git
+git clone https://github.com/Laumerz84/codebase-dashboard.git
 pip install -r utilitybelt\requirements.txt
 ui-report-tool\setup.bat
+sheets\setup.bat
 cd launcher
 python add_companions.py
 ```
 
-`add_companions.py` finds the two folders next to this one (or pass
-`--utilitybelt FOLDER` / `--ui-report-tool FOLDER` if they live elsewhere), adds
-a **UtilityBelt** and a **UI Report Tool** card, and replaces any old entries
-with those names. Everything else in `apps.json` is kept. UI Report Tool's
-**Stop** asks it to quit like its own tray Quit.
+`add_companions.py` finds the four folders next to this one (or pass
+`--utilitybelt FOLDER` / `--ui-report-tool FOLDER` / `--ekxel FOLDER` /
+`--codebase-dashboard FOLDER` if they live elsewhere), adds a card for each one it finds, and replaces any old entries
+with those names. Everything else in `apps.json` is kept. UI Report Tool's and
+Ekxel's **Stop** ask them to quit politely (Ekxel still asks about unsaved work).
 
 ## Use it
 
@@ -42,13 +48,38 @@ the taskbar). Or run `pythonw launcher.pyw` from this folder.
 | --- | --- |
 | `1` - `9` | launch the app with that number (shown on each row) |
 | `Shift+1` - `Shift+9` | **stop** that app: first press arms it, second press stops it (see "Stopping an app") |
-| `A` | **Launch all** (starts every app that is not already running) |
 | `Up` / `Down`, `Enter` | move a highlight over the rows and launch it |
 | `Esc` | close the launcher |
 
 Click a row to launch it. A green dot and the word "Running" mean the app is
 running right now (checked every 3 seconds, and whenever the window is
-clicked back into focus). **Edit list** opens `apps.json` in Notepad.
+clicked back into focus). **+ Add app** adds one without touching any file;
+**Edit list** opens `apps.json` in Notepad.
+
+**Right-click** a card for: Open, Stop (when running), **Launch options...**,
+**Properties...**, **Remove from list...**. Right-click anywhere for Add app and
+**Layout**.
+
+### Launch options
+
+Properties (or Launch options...) shows what the card runs and has a **Launch
+options** box: text added to the end of the command line every time the app is
+opened, like a game's launch options. The **Options** dropdown lists the `--x` /
+`-x` options the app itself understands; pick one to add it, pick it again to
+take it out. They are found by reading the app's Python script (nothing is run):
+the launcher follows a `.cmd` to the `.py` it calls and a `launch.pyw` stub to the
+module it imports `main` from, and collects `add_argument(...)` options and checks
+like `"--quit" in sys.argv`. For other programs (an `.exe`, a web page) the list
+is empty, but you can still type options. The **Runs** line shows the exact
+command. Saved in the entry as `"options"`.
+
+### Layout
+
+Drag the window's edges: the cards fill the width, in as many columns as fit, so
+a wide window gives two or three columns or one horizontal row. Right-click >
+**Layout** has one-click presets (one, two or three columns, one row). The height
+fits the cards until you drag it yourself; the list scrolls if it is taller than
+the window. The size is remembered in `apps.json` (`"layout"`).
 
 ## Stopping an app
 
@@ -95,11 +126,17 @@ started (file moved, wrong path) a short message appears at the bottom of the
 window and the launcher carries on.
 
 The look follows the Windows light/dark app setting and changes live when you
-switch it.
+switch it. To pick one yourself, put `"theme": "dark"` (or `"light"`) next to
+`"apps"` at the top level of `apps.json`; `"system"` (the default) follows Windows.
 
 ## Add, change or remove an app
 
-Click **Edit list**, edit `apps.json`, save. The launcher reloads it by itself
+The quick way: **+ Add app** (pick a program, script, file or web address with
+**Browse...**; the name is filled in for you), right-click a card > **Properties...**
+to change it, or **Remove from list...** to take it off (only the card goes, not the
+app).
+
+Everything else: click **Edit list**, edit `apps.json`, save. The launcher reloads it by itself
 (on save, and again when you click back into the window). If the file has a
 mistake the previous list stays on screen and a red message says which line to
 look at. An entry with a mistake is skipped and named in that message; the rest
@@ -130,7 +167,8 @@ Backslashes in JSON must be doubled (`\\`); forward slashes also work in most pl
 | `icon` | `.ico`, `.exe` or `.dll` path, optionally `"file,index"` (like a shortcut's icon location). Default: the command's own icon if it is a normal program, else a coloured letter badge. |
 | `needs_console` | `true` gives the app its own new console window (terminal programs). Default `false` (no console). |
 | `window` | `"normal"` (default), `"minimized"` or `"hidden"`: how the first window is shown. |
-| `launch_all` | `false` leaves the entry out of **Launch all** (its own button still works). Default `true`. |
+| `options` | Launch options: text added to the end of the command line every time (see "Launch options"). |
+| `launch_all` | Left over from the removed Launch all button; still accepted, has no effect. |
 | `match` | Text (or list of texts) that must all appear in a running process's command line for the green dot. Normally worked out for you; set it if the dot never lights or lights wrongly, or when two entries run the same script with different arguments (like UtilityBelt Mini, which looks for `belt.py` and `--mini`). |
 | `stop_command` | How to ask the app to quit, used by the **Stop** button instead of ending processes. A program, `.cmd`, `.ps1`, ... like `command`; started with no console. After it runs the launcher waits up to 10 seconds for the app to disappear and never force-kills. Default: none (polite close, then end the app's processes). |
 | `stop_args` | Arguments for `stop_command`, written like `args` (a list, or one string). |
@@ -150,17 +188,14 @@ The same explanation is at the top of `apps.json` itself (`_help`).
 
 `%USERPROFILE%`-style variables are expanded in `command`, `args`, `working_dir`.
 
-Web pages cannot be detected as running, so those entries have no dot, and the
-ones supplied here have `"launch_all": false` so **Launch all** does not open a
-new browser tab each time.
+Web pages cannot be detected as running, so those entries have no dot.
+
+Next to `"apps"`, the file may also hold `"theme"` and `"layout"` (see above).
 
 ## What is in the list now
 
-Requested (they start exactly like the Start menu shortcuts they came from):
-UI Report Tool, UtilityBelt, UtilityBelt Mini, Screener shell.
-
-Suggested (found by looking in `F:\ClodCode`; delete freely): Fractal Flame,
-Vortex Street, Claude Museum, UtilityBelt Dash. Each has a `_note` saying so.
+UI Report Tool, UtilityBelt, Screener shell, Ekxel (Sheets), Codebase
+Dashboard, Claude Museum. Each has a `_note` saying how it starts and stops.
 
 ## Files
 
@@ -170,8 +205,8 @@ Vortex Street, Claude Museum, UtilityBelt Dash. Each has a `_note` saying so.
 | `apps.json` | the app list |
 | `launcher.ico`, `make_icon.py` | the icon and the script that draws it (`python make_icon.py`) |
 | `install-shortcut.ps1` | creates the one Start menu shortcut (`-Remove` deletes it) |
-| `add_companions.py` | adds UtilityBelt and UI Report Tool to `apps.json` with this PC's paths (see "Recommended companions") |
-| `applauncher/` | the code: `config` (apps.json), `commands` (launching), `procs` (running detection), `stop` (the Stop button's logic), `ui`, `gfx`, `theme`, `winutil`, `aumid` |
+| `add_companions.py` | adds UtilityBelt, UI Report Tool, Ekxel and Codebase Dashboard to `apps.json` with this PC's paths (see "Recommended companions") |
+| `applauncher/` | the code: `config` (apps.json), `commands` (launching), `procs` (running detection), `stop` (the Stop button's logic), `ui`, `props` (Add app / Properties window), `flags` (finding an app's options), `gfx`, `theme`, `winutil`, `aumid` |
 | `tests/`, `run-tests.cmd` | unit tests (`run-tests.cmd`, or `python -m unittest discover -s tests`) |
 | `launcher.log` | a small rolling log (launches, problems with apps.json) |
 | `.tmp/` | scratch space used by the tests |

@@ -1,7 +1,7 @@
 """The launcher window (tkinter).
 
 Everything is drawn on two canvases - the scrolling list of app rows and the
-bottom bar with the two buttons and the status line - using small
+bottom bar with its buttons and the status line - using small
 anti-aliased PNGs for the rounded shapes, so it looks modern without any
 third-party packages.
 """
@@ -16,11 +16,12 @@ import threading
 import time
 import tkinter as tk
 import tkinter.font as tkfont
+from tkinter import messagebox
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Optional
 
-from . import commands, config, gfx, procs, winutil
+from . import commands, config, gfx, procs, props, winutil
 from . import stop as stopmod
 from .commands import LaunchError
 from .config import App
@@ -45,6 +46,8 @@ BAR_PAD = 12
 STATUS_H = 38
 DOT = 9
 KEYCAP = 22
+MIN_CARD = 260                     # cards never get narrower; a wider window fits more columns
+RESIZE_MS = 120                    # wait for the drag to pause before re-laying out the cards
 STOP_W, STOP_H = 52, 26            # the small "Stop" pill on a running card
 ARMED_W, ARMED_H = 72, 36          # after the first click: "Click again to stop"
 STOPPING_W = 68
@@ -65,6 +68,7 @@ def blend(a: str, b: str, t: float) -> str:
 @dataclass
 class _Row:
     y: int
+    x: int = 0
     bg: int = 0
     sub: int = 0
     dot: int = 0
@@ -94,12 +98,13 @@ class LauncherApp:
         self.stop_fn = stop_fn or (lambda app, apps: stopmod.stop_app(app, apps, scan=self.scan))
         self.threaded = threaded
         self._forced_dark = dark
+        self._file_theme = "system"                 # apps.json "theme", used when *dark* is not forced
 
         self.apps: list[App] = []
         self.states: list[Optional[bool]] = []
         self.rows: list[_Row] = []
         self.cursor: Optional[int] = None          # keyboard selection
-        self.hover: Optional[tuple] = None          # ("row", i) | ("stop", i) | ("all",) | ("edit",)
+        self.hover: Optional[tuple] = None          # ("row", i) | ("stop", i) | ("edit",)
         self.pressed: Optional[tuple] = None
         self.armed: Optional[int] = None            # row whose Stop was clicked once ("Click again to stop")
         self._armed_app: Optional[App] = None
@@ -122,7 +127,7 @@ class LauncherApp:
         self._btn_rects: dict[str, tuple[int, int, int, int]] = {}
 
         root.title(title)
-        root.resizable(False, False)
+        root.resizable(True, True)
         if ico_path and os.path.isfile(str(ico_path)):
             try:
                 root.iconbitmap(default=str(ico_path))
@@ -133,13 +138,22 @@ class LauncherApp:
 
         self.s = max(1.0, root.winfo_fpixels("1i") / 96.0)
         self._make_fonts()
+        first = config.load_apps(self.apps_path)
+        self._file_theme = first.theme  # so the first draw already has the right look
+        self._layout = dict(first.layout)
+        self.view_w = max(self.px(W), self.px(self._layout.get("width", W)))
+        self._fit_height = "height" not in self._layout   # False once the user sets the height by dragging
+        self._set_size: Optional[tuple[int, int]] = None   # the size this code last gave the window
+        self._resize_after: Optional[str] = None
+        self.cols, self.card_w = 1, self.px(W - 2 * PAD)
         self.pal: Palette = palette_for(self._is_dark())
         root.configure(bg=self.pal.window)
+        root.minsize(self.px(W), self.px(ROW_H + 2 * PAD + BAR_PAD + BTN_H + STATUS_H))
 
         self.list = tk.Canvas(root, highlightthickness=0, bd=0, bg=self.pal.window, takefocus=0)
         self.bar = tk.Canvas(root, highlightthickness=0, bd=0, bg=self.pal.window, takefocus=0)
-        self.list.pack(side="top", fill="x")
-        self.bar.pack(side="top", fill="x")
+        self.bar.pack(side="bottom", fill="x")
+        self.list.pack(side="top", fill="both", expand=True)
 
         self._bind()
         self._build_images()
@@ -182,6 +196,8 @@ class LauncherApp:
     def _is_dark(self) -> bool:
         if self._forced_dark is not None:
             return self._forced_dark
+        if self._file_theme != "system":
+            return self._file_theme == "dark"
         return winutil.system_uses_dark_theme()
 
     def _make_fonts(self) -> None:
@@ -215,8 +231,10 @@ class LauncherApp:
         border = max(1, round(self.s))
         ring = border * 2
         r = px(RADIUS)
-        rw, rh = px(W - 2 * PAD), px(ROW_H)
+        self._compute_layout()
+        rw, rh = self.card_w, px(ROW_H)
         images: dict[str, tk.PhotoImage] = {}
+        self._images_for = (self.card_w, self.view_w)
 
         def rr(w, h, fill, edge=None, edge_w=0, radius=r, opaque=True):
             png = gfx.rounded_rect_png(w, h, radius, rgb(fill), bg if opaque else None,
@@ -229,22 +247,20 @@ class LauncherApp:
         images["row_focus"] = rr(rw, rh, p.card, p.accent, ring)
         images["row_focus_hover"] = rr(rw, rh, p.card_hover, p.accent, ring)
 
-        all_w = px(200)
-        edit_w = px(W - 2 * PAD - 8) - all_w
         bh = px(BTN_H)
         br = px(8)
-        for name, w in (("all", all_w), ("edit", edit_w)):
-            if name == "all":
-                fills = (p.accent, p.accent_hover, p.accent_pressed)
-                edge = None
+        edit_w = min(px(140), (self.view_w - px(2 * PAD + 8)) // 2)
+        add_w = min(self.view_w - px(2 * PAD + 8) - edit_w, px(W - 2 * PAD - 8) - edit_w)  # same size in every layout
+        for name, w in (("add", add_w), ("edit", edit_w)):
+            if name == "add":
+                fills, edge = (p.accent, p.accent_hover, p.accent_pressed), None
             else:
-                fills = (p.secondary, p.secondary_hover, p.secondary_pressed)
-                edge = p.card_border
-            images[f"{name}"] = rr(w, bh, fills[0], edge, border, br)
+                fills, edge = (p.secondary, p.secondary_hover, p.secondary_pressed), p.card_border
+            images[name] = rr(w, bh, fills[0], edge, border, br)
             images[f"{name}_hover"] = rr(w, bh, fills[1], edge, border, br)
             images[f"{name}_pressed"] = rr(w, bh, fills[2], edge, border, br)
             images[f"{name}_focus"] = rr(w, bh, fills[0], p.text, ring, br)
-        self._btn_w = {"all": all_w, "edit": edit_w}
+        self._btn_w = {"add": add_w, "edit": edit_w}
 
         images["keycap"] = rr(px(KEYCAP), px(KEYCAP), p.keycap, p.keycap_border, border, px(6), opaque=False)
         images["dot"] = self._photo(gfx.circle_png(px(DOT), rgb(p.running), None))
@@ -291,14 +307,95 @@ class LauncherApp:
             self._icon_cache[key] = self._photo(png)
         return self._icon_cache[key]  # type: ignore[return-value]
 
-    # ------------------------------------------------------------------ drawing the list
+    # ------------------------------------------------------------------ layout
+    def _compute_layout(self) -> None:
+        """As many columns of cards as fit the window width (at least MIN_CARD wide each)."""
+        avail, gap = self.view_w - 2 * self.px(PAD), self.px(GAP)
+        fit = max(1, (avail + gap) // (self.px(MIN_CARD) + gap))
+        self.cols = max(1, min(fit, len(self.apps) or 1))
+        self.card_w = (avail - (self.cols - 1) * gap) // self.cols
+
+    def _lines(self) -> int:
+        return max(1, -(-max(len(self.apps), 1) // self.cols))
+
     def _content_height(self) -> int:
-        n = max(len(self.apps), 1)
+        n = self._lines()
         return self.px(PAD) + n * self.px(ROW_H) + (n - 1) * self.px(GAP)
 
     def _max_list_height(self) -> int:
         screen = self.root.winfo_screenheight()
         return max(self.px(ROW_H) * 3, int(screen * 0.75) - self.px(BAR_PAD + BTN_H + STATUS_H + 40))
+
+    def _width_for(self, cols: int) -> int:
+        """Window width that fits *cols* cards of the standard size (or MIN_CARD ones if that is too wide)."""
+        gap, pad = self.px(GAP), 2 * self.px(PAD)
+        width = pad + cols * self.px(W - 2 * PAD) + (cols - 1) * gap
+        screen = self.root.winfo_screenwidth() - self.px(40)
+        if width > screen:
+            width = max(pad + cols * self.px(MIN_CARD) + (cols - 1) * gap, self.px(W))
+        return min(width, max(screen, self.px(W)))
+
+    def set_columns(self, cols: int) -> None:
+        """Layout presets: 1, 2, 3 columns, or 0 = every card in one horizontal row."""
+        cols = len(self.apps) if cols <= 0 else cols
+        self.view_w = self._width_for(max(1, cols))
+        self._fit_height = True
+        self._relayout()
+        self._resize()
+        self._save_layout()
+
+    def _relayout(self) -> None:
+        old = (self.cols, self.card_w)
+        self._compute_layout()
+        if (self.card_w, self.view_w) != getattr(self, "_images_for", None):
+            self._build_images()
+        if (self.cols, self.card_w) != old or not self.rows:
+            self._draw_rows()
+        else:
+            self.list.configure(scrollregion=(0, 0, self.view_w, self._content_height()))
+        self._draw_bar()
+        self.show_hint()
+
+    def _on_configure(self, event) -> None:
+        if event.widget is not self.root or self._closed:
+            return
+        size = (event.width, event.height)
+        if self._set_size is None:
+            return                                    # not shown yet
+        if abs(size[0] - self._set_size[0]) <= 2 and abs(size[1] - self._set_size[1]) <= 2:
+            return                                    # our own geometry() call
+        if abs(size[1] - self._set_size[1]) > 2:
+            self._fit_height = False                  # the user picked a height
+        self._set_size = size
+        self._cancel(self._resize_after)
+        self._resize_after = self._later(RESIZE_MS, self._after_user_resize)
+
+    def _after_user_resize(self) -> None:
+        self._resize_after = None
+        width = self.root.winfo_width()
+        if width != self.view_w:
+            self.view_w = max(self.px(W), width)
+            self._relayout()
+            if self._fit_height:
+                self._resize()               # more columns, fewer lines: shrink to fit
+        self._save_layout()
+
+    def _save_layout(self) -> None:
+        layout = {"width": round(self.view_w / self.s)}
+        if not self._fit_height:
+            layout["height"] = round(self.root.winfo_height() / self.s)
+        if layout.get("width") == W and "height" not in layout:
+            layout = {}
+        if layout == self._layout:
+            return
+        try:
+            config.set_top_level(self.apps_path, "layout", layout or None)
+            self._layout = layout
+            self._file_stamp = self._stamp()            # our own write: no reload needed
+        except (OSError, ValueError) as exc:
+            log.warning("could not save the layout: %s", exc)
+
+    # ------------------------------------------------------------------ drawing the list
 
     def _draw_rows(self) -> None:
         c, p, px = self.list, self.pal, self.px
@@ -306,15 +403,19 @@ class LauncherApp:
         self.rows = []
         self._drawn = True
         c.configure(bg=p.window)
-        x0 = px(PAD)
-        rw, rh = px(W - 2 * PAD), px(ROW_H)
+        self._compute_layout()
+        if (self.card_w, self.view_w) != getattr(self, "_images_for", None):
+            self._build_images()
+        rw, rh = self.card_w, px(ROW_H)
 
         if not self.apps:
-            c.create_text(px(W) // 2, px(PAD) + rh // 2, text="No apps yet - click Edit list to add some.",
+            c.create_text(self.view_w // 2, px(PAD) + rh // 2, text="No apps yet - click Add app.",
                           fill=p.muted, font=self.f_status)
         for i, app in enumerate(self.apps):
-            y = px(PAD) + i * (rh + px(GAP))
-            row = _Row(y=y)
+            line, col = divmod(i, self.cols)
+            x0 = px(PAD) + col * (rw + px(GAP))
+            y = px(PAD) + line * (rh + px(GAP))
+            row = _Row(y=y, x=x0)
             row.bg = c.create_image(x0, y, anchor="nw", image=self._images["row"])
             icon_x, icon_y = x0 + px(12), y + (rh - px(ICON)) // 2
             image = self._icon_image(app)
@@ -353,7 +454,8 @@ class LauncherApp:
 
         total = self._content_height()
         view = min(total, self._max_list_height())
-        c.configure(width=px(W), height=view, scrollregion=(0, 0, px(W), total), yscrollincrement=px(24))
+        c.configure(width=self.view_w, height=view, scrollregion=(0, 0, self.view_w, total),
+                    yscrollincrement=px(24))
         self._apply_states()
 
     def _subtitle(self, i: int) -> tuple[str, str]:
@@ -448,22 +550,19 @@ class LauncherApp:
         c.configure(bg=p.window)
         x0, y0 = px(PAD), px(BAR_PAD)
         bh = px(BTN_H)
-        all_w, edit_w = self._btn_w["all"], self._btn_w["edit"]
+        add_w, edit_w = self._btn_w["add"], self._btn_w["edit"]
         self._btn_rects = {
-            "all": (x0, y0, x0 + all_w, y0 + bh),
-            "edit": (x0 + all_w + px(8), y0, x0 + all_w + px(8) + edit_w, y0 + bh),
+            "add": (x0, y0, x0 + add_w, y0 + bh),
+            "edit": (x0 + add_w + px(8), y0, x0 + add_w + px(8) + edit_w, y0 + bh),
         }
         self._btn_items: dict[str, int] = {}
-        for name, label, colour in (("all", "Launch all", p.on_accent), ("edit", "Edit list", p.text)):
+        for name, label, colour in (("add", "+  Add app", p.on_accent), ("edit", "Edit list", p.text)):
             bx0, by0, bx1, by1 = self._btn_rects[name]
             self._btn_items[name] = c.create_image(bx0, by0, anchor="nw", image=self._images[name])
             c.create_text((bx0 + bx1) // 2, (by0 + by1) // 2, text=label, fill=colour, font=self.f_btn)
-        bx0, by0, bx1, by1 = self._btn_rects["all"]
-        c.create_text(bx1 - px(14), (by0 + by1) // 2, anchor="e", text="A", font=self.f_key,
-                      fill=blend(p.on_accent, p.accent, 0.35))
-        self.status_id = c.create_text(x0, y0 + bh + px(10), anchor="nw", width=px(W - 2 * PAD),
+        self.status_id = c.create_text(x0, y0 + bh + px(10), anchor="nw", width=self.view_w - 2 * px(PAD),
                                        text="", font=self.f_status, fill=p.muted)
-        c.configure(width=px(W), height=y0 + bh + px(10) + px(STATUS_H) - px(6))
+        c.configure(width=self.view_w, height=y0 + bh + px(10) + px(STATUS_H) - px(6))
 
     def _paint_button(self, name: str) -> None:
         if self.pressed == (name,):
@@ -476,8 +575,17 @@ class LauncherApp:
 
     # ------------------------------------------------------------------ window size / chrome
     def _resize(self, first: bool = False) -> None:
+        """Fit the window: the width is the layout's; the height fits the cards unless the user chose one."""
         self.root.update_idletasks()
-        width, height = self.px(W), self.list.winfo_reqheight() + self.bar.winfo_reqheight()
+        width = self.view_w
+        bar_h = self.bar.winfo_reqheight()
+        if self._fit_height:
+            height = min(self._content_height(), self._max_list_height()) + bar_h
+        elif first:
+            height = max(self.px(self._layout.get("height", 0)), self.px(ROW_H + PAD) + bar_h)
+        else:
+            height = self.root.winfo_height()
+        self._set_size = (width, height)
         if first:
             sw, sh = self.root.winfo_screenwidth(), self.root.winfo_screenheight()
             self.root.geometry(f"{width}x{height}+{max(0, (sw - width) // 2)}+{max(0, (sh - height) // 3)}")
@@ -513,14 +621,14 @@ class LauncherApp:
             n = min(len(self.apps), 9)
             keys = ("1" if n == 1 else f"1–{n}") if n else ""
             text = ((f"{keys} launch   ·   Shift+{keys} stop   ·   " if keys else "")
-                    + "A launch all   ·   Esc close")
+                    + "Right-click: more")
             kind = "hint"
         self.bar.itemconfigure(self.status_id, text=self._clip(text),
                                fill=self.pal.error if kind == "error" else self.pal.muted)
 
     def _clip(self, text: str) -> str:
         """Keep the status to two lines."""
-        limit = 2 * int(self.px(W - 2 * PAD) / max(1, self.f_status.measure("n")) * 1.15)
+        limit = 2 * int((self.view_w - 2 * self.px(PAD)) / max(1, self.f_status.measure("n")) * 1.15)
         return text if len(text) <= limit else text[: limit - 1].rstrip() + "…"
 
     # ------------------------------------------------------------------ loading apps.json
@@ -550,6 +658,9 @@ class LauncherApp:
             log.warning("apps.json: %s", problem)
         changed = result.apps != self.apps
         self.apps = result.apps
+        if result.theme != self._file_theme:
+            self._file_theme = result.theme
+            self._check_theme()
         if changed or force:
             self.disarm(repaint=False)
             self.states = [None] * len(self.apps)
@@ -657,25 +768,98 @@ class LauncherApp:
             self.show_status(f"Started {app.name}", "ok")
             self._after_launch()
 
-    def launch_everything(self) -> None:
+    def add_app(self) -> None:
         self.disarm()
-        found = self._safe_scan()
-        states = procs.running_states(self.apps, found, ignore_pid=os.getpid())
-        result = commands.launch_all(self.apps, states, self.launch_fn)
-        for name, why in result.failed:
-            log.warning("launch all: %s failed: %s", name, why)
-        log.info("launch all: launched=%s skipped=%s failed=%s", result.launched, result.skipped, result.failed)
-        message = result.summary()
-        if result.excluded:
-            message = message.rstrip(".") + f", {len(result.excluded)} not in Launch all."
-        if result.failed:
-            first_name, first_why = result.failed[0]
-            message += f" {first_name}: {first_why}"
-        self.show_status(message, "error" if result.failed else "ok")
-        if found is not None:
-            self.states = states
-            self._apply_states()
-        self._after_launch()
+        props.AppDialog(self.root, self.pal, self.s, app=None, on_save=self._save_new)
+
+    def _save_new(self, fields: dict) -> str:
+        if any(a.name == fields["name"] for a in self.apps):
+            return f"There is already an app called {fields['name']} - pick another name."
+        try:
+            config.ensure_file(self.apps_path)
+            config.add_entry(self.apps_path, fields)
+        except (OSError, ValueError) as exc:
+            return f"Could not save: {exc}"
+        self.reload()
+        self.show_status(f"Added {fields['name']}", "ok")
+        return ""
+
+    def show_properties(self, i: int, focus_options: bool = False) -> None:
+        if not 0 <= i < len(self.apps):
+            return
+        self.disarm()
+        app = self.apps[i]
+
+        def save(fields: dict) -> str:
+            if fields["name"] != app.name and any(a.name == fields["name"] for a in self.apps):
+                return f"There is already an app called {fields['name']} - pick another name."
+            try:
+                config.update_entry(self.apps_path, i, app.name, fields)
+            except (OSError, ValueError) as exc:
+                return f"Could not save: {exc}"
+            self.reload()
+            self.show_status(f"Saved {fields['name']}", "ok")
+            return ""
+
+        props.AppDialog(self.root, self.pal, self.s, app=app, on_save=save, focus_options=focus_options)
+
+    def remove_app(self, i: int) -> None:
+        if not 0 <= i < len(self.apps):
+            return
+        app = self.apps[i]
+        if not messagebox.askyesno("Remove app", f"Take {app.name} off the list?\n\n"
+                                   "Only the launcher entry goes; the app itself is not touched.",
+                                   parent=self.root):
+            return
+        try:
+            config.remove_entry(self.apps_path, i, app.name)
+        except (OSError, ValueError) as exc:
+            self.show_status(f"Could not remove {app.name}: {exc}", "error")
+            return
+        self.reload()
+        self.show_status(f"Removed {app.name}", "ok")
+
+    def _menu(self) -> tk.Menu:
+        p = self.pal
+        return tk.Menu(self.root, tearoff=0, bg=p.card, fg=p.text, activebackground=p.accent,
+                       activeforeground=p.on_accent, disabledforeground=p.muted, font=self.f_status)
+
+    def _layout_menu(self, parent: tk.Menu) -> tk.Menu:
+        menu = tk.Menu(parent, tearoff=0, bg=self.pal.card, fg=self.pal.text, activebackground=self.pal.accent,
+                       activeforeground=self.pal.on_accent, font=self.f_status)
+        for label, cols in (("One column", 1), ("Two columns", 2), ("Three columns", 3),
+                            ("One row (horizontal)", 0)):
+            menu.add_command(label=label, command=lambda c=cols: self.set_columns(c))
+        menu.add_separator()
+        menu.add_command(label="Or drag the window's edges: cards fill the width", state="disabled")
+        return menu
+
+    def _on_right_click(self, event) -> None:
+        hit = self._hit(event) if event.widget is self.list else None
+        menu = self._menu()
+        if hit and hit[0] in ("row", "stop"):
+            i = hit[1]
+            app = self.apps[i]
+            menu.add_command(label=f"Open {app.name}", command=lambda: self.launch_index(i))
+            if self._can_stop(i):
+                menu.add_command(label="Stop", command=lambda: self._menu_stop(i))
+            menu.add_separator()
+            menu.add_command(label="Launch options…", command=lambda: self.show_properties(i, focus_options=True))
+            menu.add_command(label="Properties…", command=lambda: self.show_properties(i))
+            menu.add_command(label="Remove from list…", command=lambda: self.remove_app(i))
+            menu.add_separator()
+        menu.add_command(label="Add app…", command=self.add_app)
+        menu.add_cascade(label="Layout", menu=self._layout_menu(menu))
+        menu.add_command(label="Edit list (apps.json)", command=self.edit_list)
+        try:
+            menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            menu.grab_release()
+
+    def _menu_stop(self, i: int) -> None:
+        if self._can_stop(i) and self.apps[i] not in self._stopping:
+            self.disarm()
+            self._begin_stop(i)
 
     def edit_list(self) -> None:
         config.ensure_file(self.apps_path)
@@ -774,6 +958,8 @@ class LauncherApp:
         self._after_launch()
 
     def close(self) -> None:
+        if self._drawn and self.root.winfo_viewable():
+            self._save_layout()
         self._closed = True
         for after_id in list(self._timers):
             self._cancel(after_id)
@@ -804,6 +990,9 @@ class LauncherApp:
             canvas.bind("<ButtonPress-1>", self._on_press)
             canvas.bind("<ButtonRelease-1>", self._on_release)
         self.list.bind("<MouseWheel>", self._on_wheel)
+        for canvas in (self.list, self.bar):
+            canvas.bind("<ButtonPress-3>", self._on_right_click)
+        r.bind("<Configure>", self._on_configure, add="+")
 
     def _on_focus_in(self, event) -> None:
         if event.widget is self.root:
@@ -826,9 +1015,6 @@ class LauncherApp:
                 self.launch_index(index)
                 return True
             return False
-        if ch.lower() == "a":
-            self.launch_everything()
-            return True
         return False
 
     def _on_key(self, event) -> None:
@@ -877,13 +1063,13 @@ class LauncherApp:
             return None
         x, y = event.x, self.list.canvasy(event.y)
         rh, gap = self.px(ROW_H), self.px(GAP)
-        if not (self.px(PAD) <= x < self.px(W - PAD)):
+        relx, rel = x - self.px(PAD), y - self.px(PAD)
+        if relx < 0 or rel < 0:
             return None
-        rel = y - self.px(PAD)
-        if rel < 0:
-            return None
-        index, offset = divmod(int(rel), rh + gap)
-        if offset < rh and index < len(self.apps):
+        col, xoff = divmod(int(relx), self.card_w + gap)
+        line, offset = divmod(int(rel), rh + gap)
+        index = line * self.cols + col
+        if col < self.cols and xoff < self.card_w and offset < rh and index < len(self.apps):
             if self._can_stop(index) and index < len(self.rows):
                 x0, y0, x1, y1 = self._stop_box(index)
                 if x0 <= x < x1 and y0 <= y < y1:
@@ -933,8 +1119,8 @@ class LauncherApp:
             self.launch_index(pressed[1])
         elif pressed[0] == "stop":
             self.stop_clicked(pressed[1])
-        elif pressed[0] == "all":
-            self.launch_everything()
+        elif pressed[0] == "add":
+            self.add_app()
         elif pressed[0] == "edit":
             self.edit_list()
 

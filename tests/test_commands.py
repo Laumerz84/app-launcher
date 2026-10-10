@@ -194,7 +194,8 @@ class ShippedAppsMatchTheirShortcuts(unittest.TestCase):
     def test_utilitybelt_opens_in_windows_terminal_focus_mode_like_its_shortcut(self):
         plan = self.plan("UtilityBelt")
         self.assertEqual(plan.cmdline,
-                         r"C:\Users\USERNAME\AppData\Local\Microsoft\WindowsApps\wt.exe --focus -w new --title UtilityBelt"
+                         os.path.expandvars(r"%LOCALAPPDATA%\Microsoft\WindowsApps\wt.exe")
+                         + r" --focus -w new --title UtilityBelt"
                          r" -d F:\ClodCode\utilitybelt cmd /c F:\ClodCode\utilitybelt\belt.cmd")
         self.assertEqual(plan.cwd, r"F:\ClodCode\utilitybelt")
         self.assertFalse(plan.has_console)  # Windows Terminal makes the window itself
@@ -211,8 +212,8 @@ class ShippedAppsMatchTheirShortcuts(unittest.TestCase):
         plan = self.plan("Screener shell")
         self.assertEqual(plan.cmdline,
                          r'''C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoExit -ExecutionPolicy Bypass '''
-                         r'''-Command ". 'C:\Users\USERNAME\Python\screener-jobs\shell\screener-shell.ps1'"''')
-        self.assertEqual(plan.cwd, r"C:\Users\USERNAME\Python\Screener-v2")
+                         r'''-Command ". (Join-Path $env:USERPROFILE 'Python\screener-jobs\shell\screener-shell.ps1')"''')
+        self.assertEqual(plan.cwd, os.path.expandvars(r"%USERPROFILE%\Python\Screener-v2"))
         self.assertTrue(plan.has_console)
 
     def test_suggested_html_entries_open_in_the_default_app(self):

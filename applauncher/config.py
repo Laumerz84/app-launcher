@@ -17,17 +17,22 @@ from pathlib import Path
 from typing import Any
 
 WINDOW_MODES = ("normal", "minimized", "hidden")
+THEMES = ("system", "light", "dark")
 
 # Keys an entry may carry. Anything else (not starting with "_") earns a warning,
 # which catches typos such as "needsconsole".
 KNOWN_KEYS = {
     "name", "command", "args", "working_dir", "cwd", "icon", "needs_console",
-    "window", "launch_all", "match", "stop_command", "stop_args",
+    "window", "launch_all", "match", "stop_command", "stop_args", "options",
 }
 
 HELP_TEXT: dict[str, Any] = {
     "about": "One entry per app in the 'apps' list below. Save the file and the launcher reloads it by itself. "
              "Keys starting with an underscore (like this _help) are comments and are ignored.",
+    "layout": "Optional, next to \"apps\": the window's size, e.g. {\"width\": 700, \"height\": 500}. The "
+              "window saves it when you resize it; cards flow into as many columns as fit the width.",
+    "theme": "Optional, next to \"apps\" (not inside an entry): \"system\" (default, follows the Windows "
+             "light/dark app setting), \"light\" or \"dark\".",
     "name": "Text shown on the button. Required.",
     "command": "What to run. Required. An .exe / .cmd / .bat / .ps1 / .py / .pyw file, a program on PATH, "
                "or a document / web page to open with its default app (.html opens in your default browser, "
@@ -42,8 +47,7 @@ HELP_TEXT: dict[str, Any] = {
                      "(for terminal programs). false starts it with no console.",
     "window": "Optional: \"normal\" (default), \"minimized\" or \"hidden\". Only affects how the new process's "
               "first window is shown.",
-    "launch_all": "Optional, true (default) or false. false leaves this entry out of the Launch all button "
-                  "(its own button still works). Good for web pages, which cannot be detected as running.",
+    "launch_all": "No longer used (the Launch all button was removed); still accepted.",
     "stop_command": "Optional. How to ask this app to quit, in place of the launcher ending it itself. "
                     "Same kinds of thing as command (a program, .cmd, .ps1, ...), started with no console. "
                     "When the running dot shows and you click Stop twice, the launcher runs this, then waits up to "
@@ -52,6 +56,9 @@ HELP_TEXT: dict[str, Any] = {
                     "Stop closes the app's windows politely, waits 2 seconds, then ends that app's processes and "
                     "the processes they started (only the ones this entry's running dot recognises).",
     "stop_args": "Optional. Arguments for stop_command, written the same way as args.",
+    "options": "Optional. Launch options: text added to the end of the command line every time the app is "
+               "opened, e.g. \"--mini\". Easiest to set by right-clicking the app > Properties, which lists "
+               "the options the app understands.",
     "match": "Optional. Text (or a list of texts) that must all appear in a running process's command line "
              "for the running dot to light up, for example [\"belt.py\", \"--mini\"]. Normally worked out "
              "automatically from the command; set it when the dot never lights or lights wrongly.",
@@ -68,11 +75,12 @@ class App:
     icon: str = ""
     needs_console: bool = False
     window: str = "normal"
-    launch_all: bool = True
+    launch_all: bool = True             # no longer used by the window (Launch all was removed); still accepted
     match: tuple[str, ...] = ()
     note: str = ""
     stop_command: str = ""
     stop_args: tuple[str, ...] | str = ()
+    options: str = ""                   # launch options, appended to the command line as typed
 
 
 @dataclass
@@ -81,6 +89,8 @@ class LoadResult:
     errors: list[str] = field(default_factory=list)    # things that were skipped or wrong
     warnings: list[str] = field(default_factory=list)  # things that were tolerated
     ok: bool = True                                    # False: file unusable, keep the old list
+    theme: str = "system"                              # "system" | "light" | "dark"
+    layout: dict = field(default_factory=dict)         # window size: {"width": px, "height": px} (100% scale)
 
     @property
     def message(self) -> str:
@@ -175,6 +185,7 @@ def _parse_entry(index: int, raw: Any, warnings: list[str]) -> App:
         note=note if isinstance(note, str) else "",
         stop_command=stop_command,
         stop_args=stop_args,
+        options=text("options"),
     )
 
 
@@ -183,6 +194,17 @@ def parse_apps(data: Any) -> LoadResult:
     result = LoadResult()
     if isinstance(data, dict):
         entries = data.get("apps")
+        theme = data.get("theme", "system")
+        if isinstance(theme, str) and theme.strip().lower() in THEMES:
+            result.theme = theme.strip().lower()
+        else:
+            result.warnings.append(f"\"theme\" must be one of {', '.join(THEMES)} - following Windows")
+        layout = data.get("layout", {})
+        if isinstance(layout, dict):
+            result.layout = {k: v for k, v in layout.items()
+                             if k in ("width", "height") and isinstance(v, int) and not isinstance(v, bool) and v > 0}
+        else:
+            result.warnings.append('"layout" must be like {"width": 700, "height": 500} - ignored')
         if entries is None:
             result.ok = False
             result.errors.append("apps.json has no \"apps\" list")
@@ -230,6 +252,77 @@ def load_apps(path: str | os.PathLike[str]) -> LoadResult:
         result.errors.append(f"Could not read {path.name}: {exc}")
         return result
     return parse_text(text)
+
+
+# ----------------------------------------------------------------------------- changing the file from the window
+# The window edits apps.json for Add app / Properties / Remove / Layout. Each change re-reads the file
+# first, so an edit made in Notepad meanwhile is kept. Errors are ValueError / OSError with a readable message.
+
+def _read_doc(path: Path) -> tuple[Any, list]:
+    data = json.loads(path.read_text(encoding="utf-8-sig"))
+    if isinstance(data, list):              # old style: a bare list of apps
+        data = {"apps": data}
+    entries = data.get("apps") if isinstance(data, dict) else None
+    if not isinstance(entries, list):
+        raise ValueError(f"{path.name} has no \"apps\" list")
+    return data, entries
+
+
+def _write_doc(path: Path, data: Any) -> None:
+    path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+
+
+def _find(entries: list, index: int, name: str, path: Path) -> int:
+    """The entry is found by position and checked by name, so the wrong app is never changed."""
+    if 0 <= index < len(entries) and isinstance(entries[index], dict) \
+            and str(entries[index].get("name", "")).strip() == name:
+        return index
+    named = [i for i, e in enumerate(entries) if isinstance(e, dict) and str(e.get("name", "")).strip() == name]
+    if len(named) == 1:
+        return named[0]
+    raise ValueError(f"'{name}' was not found in {path.name} - was it renamed?")
+
+
+def update_entry(path: str | os.PathLike[str], index: int, name: str, changes: dict[str, Any]) -> None:
+    """Set keys of one entry; a value of None or "" removes that key."""
+    path = Path(path)
+    data, entries = _read_doc(path)
+    entry = entries[_find(entries, index, name, path)]
+    for key, value in changes.items():
+        if value is None or value == "" or value == []:
+            entry.pop(key, None)
+        else:
+            entry[key] = value
+    _write_doc(path, data)
+
+
+def set_options(path: str | os.PathLike[str], index: int, name: str, options: str) -> None:
+    update_entry(path, index, name, {"options": options.strip()})
+
+
+def add_entry(path: str | os.PathLike[str], entry: dict[str, Any]) -> None:
+    path = Path(path)
+    data, entries = _read_doc(path)
+    entries.append({k: v for k, v in entry.items() if v not in (None, "", [])})
+    _write_doc(path, data)
+
+
+def remove_entry(path: str | os.PathLike[str], index: int, name: str) -> None:
+    path = Path(path)
+    data, entries = _read_doc(path)
+    del entries[_find(entries, index, name, path)]
+    _write_doc(path, data)
+
+
+def set_top_level(path: str | os.PathLike[str], key: str, value: Any) -> None:
+    """Set a setting next to "apps" (theme, layout ...); None removes it."""
+    path = Path(path)
+    data, _ = _read_doc(path)
+    if value is None:
+        data.pop(key, None)
+    else:
+        data[key] = value
+    _write_doc(path, data)
 
 
 def skeleton_json() -> str:
