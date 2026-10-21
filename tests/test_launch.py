@@ -257,10 +257,10 @@ class LaunchFlagTests(unittest.TestCase):
 class EditorTests(unittest.TestCase):
     def test_edit_list_opens_notepad_on_the_file(self):
         popen = mock.Mock()
-        commands.open_in_editor("F:\\x\\apps.json", popen=popen)
+        commands.open_in_editor("D:\\x\\apps.json", popen=popen)
         argv = popen.call_args[0][0]
         self.assertEqual(os.path.basename(argv[0]).lower(), "notepad.exe")
-        self.assertEqual(argv[1], "F:\\x\\apps.json")
+        self.assertEqual(argv[1], "D:\\x\\apps.json")
 
 
 if __name__ == "__main__":

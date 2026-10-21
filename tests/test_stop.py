@@ -15,7 +15,7 @@ from applauncher.commands import CREATE_NO_WINDOW, LaunchError, launch_app
 from applauncher.config import App
 from applauncher.procs import Proc
 
-UB = r"F:\ClodCode\utilitybelt"
+UB = r"C:\Tools\utilitybelt"
 
 
 def P(pid, name, cmdline="", ppid=1, started=None):
@@ -26,30 +26,30 @@ def P(pid, name, cmdline="", ppid=1, started=None):
 
 # --------------------------------------------------------------------------- the real entries, pretend processes
 def belt_world():
-    """UtilityBelt, UtilityBelt Mini, the Screener shell and UI Report Tool all running at once."""
+    """UtilityBelt, UtilityBelt Mini, the dev shell and UI Report Tool all running at once."""
     return [
         # explorer -> launcher (the test process) -> ...
         P(1, "explorer.exe", r"C:\Windows\explorer.exe", ppid=0),
-        P(50, "pythonw.exe", r'"C:\Python\pythonw.exe" "F:\ClodCode\launcher\launcher.pyw"', ppid=1),
+        P(50, "pythonw.exe", r'"C:\Python\pythonw.exe" "C:\Tools\launcher\launcher.pyw"', ppid=1),
         # One Windows Terminal process hosts both UtilityBelt windows, each with its own OpenConsole.
         P(200, "WindowsTerminal.exe", r"C:\Program Files\WindowsApps\WindowsTerminal.exe", ppid=1, started=1),
         # UtilityBelt (wt --focus): OpenConsole -> cmd /c belt.cmd -> python ...\belt.py -> powershell helper
         P(204, "OpenConsole.exe", r"OpenConsole.exe --headless", ppid=200, started=90),
-        P(100, "cmd.exe", r'cmd /c F:\ClodCode\utilitybelt\belt.cmd', ppid=204, started=100),
-        P(101, "python.exe", r'python  "F:\ClodCode\utilitybelt\belt.py"', ppid=100),
+        P(100, "cmd.exe", r'cmd /c C:\Tools\utilitybelt\belt.cmd', ppid=204, started=100),
+        P(101, "python.exe", r'python  "C:\Tools\utilitybelt\belt.py"', ppid=100),
         P(102, "powershell.exe", r"powershell -NoProfile -NonInteractive -Command gpu-stream", ppid=101),
         # UtilityBelt Mini: OpenConsole -> python belt.py --mini -> powershell helper
         P(201, "OpenConsole.exe", r"OpenConsole.exe --headless", ppid=200),
         P(202, "python.exe", r"python belt.py --mini", ppid=201),
         P(203, "powershell.exe", r"powershell -NoProfile -NonInteractive -Command gpu-stream", ppid=202),
-        # Screener shell
+        # Dev shell
         P(300, "powershell.exe",
           r'''"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -NoExit -ExecutionPolicy Bypass '''
-          r'''-Command ". (Join-Path $env:USERPROFILE 'Python\screener-jobs\shell\screener-shell.ps1')"''', ppid=1),
-        P(301, "python.exe", os.path.expandvars(r"%USERPROFILE%\Python\Screener-v2\.venv\Scripts\python.exe viewer.py"), ppid=300),
+          r'''-Command ". (Join-Path $env:USERPROFILE 'scripts\dev-shell.ps1')"''', ppid=1),
+        P(301, "python.exe", os.path.expandvars(r"%USERPROFILE%\projects\myproject\.venv\Scripts\python.exe viewer.py"), ppid=300),
         # UI Report Tool: venv trampoline + real interpreter
-        P(400, "pythonw.exe", r'"G:\UI Report Tool\.venv\Scripts\pythonw.exe" "G:\UI Report Tool\launch.pyw"', ppid=1),
-        P(401, "pythonw.exe", r'"C:\Python\pythonw.exe" "G:\UI Report Tool\launch.pyw"', ppid=400),
+        P(400, "pythonw.exe", r'"C:\Tools\UI Report Tool\.venv\Scripts\pythonw.exe" "C:\Tools\UI Report Tool\launch.pyw"', ppid=1),
+        P(401, "pythonw.exe", r'"C:\Python\pythonw.exe" "C:\Tools\UI Report Tool\launch.pyw"', ppid=400),
         # bystanders
         P(900, "python.exe", r"python -m http.server", ppid=1),
         P(901, "cmd.exe", r"C:\WINDOWS\system32\cmd.exe /d /s /c desktop-commander", ppid=1),
@@ -57,11 +57,11 @@ def belt_world():
 
 
 class RealEntriesNeverTouchEachOther(unittest.TestCase):
-    """With the shipped apps.json: stopping one entry can only ever reach its own processes."""
+    """With tests/sample_apps.json: stopping one entry can only ever reach its own processes."""
 
     @classmethod
     def setUpClass(cls):
-        cls.apps = config.load_apps(support.ROOT / "apps.json").apps
+        cls.apps = config.load_apps(support.SAMPLE_APPS).apps
         cls.index = {a.name: i for i, a in enumerate(cls.apps)}
         cls.world = belt_world()
 
@@ -76,8 +76,8 @@ class RealEntriesNeverTouchEachOther(unittest.TestCase):
     def test_utilitybelt_mini_reaches_only_its_own_python_and_helper(self):
         self.assertEqual(self.reach("UtilityBelt Mini"), {202, 203})     # not the terminal hosting it
 
-    def test_screener_shell(self):
-        self.assertEqual(self.reach("Screener shell"), {300, 301})
+    def test_dev_shell(self):
+        self.assertEqual(self.reach("Dev shell"), {300, 301})
 
     def test_ui_report_tool(self):
         self.assertEqual(self.reach("UI Report Tool"), {400, 401})
@@ -96,11 +96,11 @@ class RealEntriesNeverTouchEachOther(unittest.TestCase):
                 seen[pid] = name
 
     def test_entries_that_are_not_running_reach_nothing(self):
-        for name in ("UtilityBelt Dash", "Fractal Flame", "Vortex Street", "Claude Museum"):
+        for name in ("UtilityBelt Dash", "Demo page", "Docs page", "Notes page"):
             self.assertEqual(self.reach(name), set(), name)
 
     def test_stopping_with_the_other_running_uses_only_the_right_victims(self):
-        """End to end with pretend actions: stop UtilityBelt while Mini, Screener etc. are all running."""
+        """End to end with pretend actions: stop UtilityBelt while Mini, the dev shell etc. are all running."""
         result, world = run_fake_stop(self.apps, "UtilityBelt", belt_world(), closes=False)
         self.assertTrue(result.ok, result.message)
         self.assertEqual(set(world.terminated), {101, 102})
@@ -492,12 +492,12 @@ class StopCommandLogicTests(support.TmpDirTestCase):
         self.assertIsNone(commands.build_stop_plan(App(name="n", command="x.exe")))
 
     def test_shipped_ui_report_tool_entry_asks_the_app_to_quit_with_dash_dash_quit(self):
-        apps = {a.name: a for a in config.load_apps(support.ROOT / "apps.json").apps}
+        apps = {a.name: a for a in config.load_apps(support.SAMPLE_APPS).apps}
         plan = commands.build_stop_plan(apps["UI Report Tool"], check=False)
-        self.assertEqual(plan.cmdline, r'"G:\UI Report Tool\.venv\Scripts\pythonw.exe" "G:\UI Report Tool\launch.pyw" --quit')
-        self.assertEqual(plan.cwd, r"G:\UI Report Tool")
+        self.assertEqual(plan.cmdline, r'"C:\Tools\UI Report Tool\.venv\Scripts\pythonw.exe" "C:\Tools\UI Report Tool\launch.pyw" --quit')
+        self.assertEqual(plan.cwd, r"C:\Tools\UI Report Tool")
         self.assertEqual(plan.creationflags, CREATE_NO_WINDOW)
-        for name in ("UtilityBelt", "UtilityBelt Mini", "Screener shell"):
+        for name in ("UtilityBelt", "UtilityBelt Mini", "Dev shell"):
             self.assertEqual(apps[name].stop_command, "", name)
 
 

@@ -1,0 +1,29 @@
+{
+  "_help": {
+    "about": "One entry per app in the 'apps' list below. Save the file and the launcher reloads it by itself. Keys starting with an underscore (like this _help) are comments and are ignored.",
+    "layout": "Optional, next to \"apps\": the window's size, e.g. {\"width\": 700, \"height\": 500}. The window saves it when you resize it; cards flow into as many columns as fit the width.",
+    "theme": "Optional, next to \"apps\" (not inside an entry): \"system\" (default, follows the Windows light/dark app setting), \"light\" or \"dark\".",
+    "name": "Text shown on the button. Required.",
+    "command": "What to run. Required. An .exe / .cmd / .bat / .ps1 / .py / .pyw file, a program on PATH, or a document / web page to open with its default app (.html opens in your default browser, so does an https:// address). Environment variables like %USERPROFILE% are expanded.",
+    "args": "Optional. A list of arguments, one string per argument: [\"/c\", \"C:\\\\tools\\\\thing.cmd\"]. A single string is also accepted and passed as-is. Remember to double every backslash in JSON.",
+    "working_dir": "Optional. Folder the app starts in. If left out, the folder that holds the command is used.",
+    "icon": "Optional. A .ico / .exe / .dll file, or \"file,index\" to pick an icon inside an exe or dll (like Windows shortcuts do). If left out, the command's own icon is used when it is a normal program, otherwise a coloured letter badge is drawn.",
+    "needs_console": "Optional, true or false (default false). true gives the app its own new console window (for terminal programs). false starts it with no console.",
+    "window": "Optional: \"normal\" (default), \"minimized\" or \"hidden\". Only affects how the new process's first window is shown.",
+    "launch_all": "No longer used (the Launch all button was removed); still accepted.",
+    "stop_command": "Optional. How to ask this app to quit, in place of the launcher ending it itself. Same kinds of thing as command (a program, .cmd, .ps1, ...), started with no console. When the running dot shows and you click Stop twice, the launcher runs this, then waits up to 10 seconds for the app to disappear. It never force-kills afterwards: if the app is still there (perhaps asking about unsaved work) the launcher just says so. Without stop_command, Stop closes the app's windows politely, waits 2 seconds, then ends that app's processes and the processes they started (only the ones this entry's running dot recognises).",
+    "stop_args": "Optional. Arguments for stop_command, written the same way as args.",
+    "options": "Optional. Launch options: text added to the end of the command line every time the app is opened, e.g. \"--mini\". Easiest to set by right-clicking the app > Properties, which lists the options the app understands.",
+    "match": "Optional. Text (or a list of texts) that must all appear in a running process's command line for the running dot to light up, for example [\"belt.py\", \"--mini\"]. Normally worked out automatically from the command; set it when the dot never lights or lights wrongly.",
+    "_note": "Free text, ignored. Handy for reminding yourself why an entry is there."
+  },
+  "theme": "system",
+  "layout": {},
+  "apps": [
+    {
+      "name": "Notepad",
+      "command": "C:\\Windows\\System32\\notepad.exe",
+      "_note": "Example entry - replace or delete it. Right-click a card > Properties, or + Add app, or Edit list."
+    }
+  ]
+}

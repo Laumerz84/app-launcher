@@ -1,5 +1,5 @@
 """Shared helpers for the tests. Import this first: it puts the launcher on sys.path and
-makes sure every temporary file lands on F: (under .tmp), never on C:."""
+makes sure every temporary file lands in .tmp next to the launcher (not the system temp folder)."""
 import json
 import logging
 import os
@@ -18,10 +18,12 @@ if str(ROOT) not in sys.path:
 
 TMP_ROOT = ROOT / ".tmp"
 TMP_ROOT.mkdir(exist_ok=True)
-tempfile.tempdir = str(TMP_ROOT)          # tempfile / mkdtemp default to F:
+tempfile.tempdir = str(TMP_ROOT)          # tempfile / mkdtemp default to .tmp
 os.environ["TEMP"] = os.environ["TMP"] = str(TMP_ROOT)
 os.environ["LAUNCHER_LOG"] = str(TMP_ROOT / "test-launcher.log")   # never write into the real launcher.log
 
+SAMPLE_APPS = Path(__file__).resolve().parent / "sample_apps.json"   # a made-up list with neutral paths
+EXAMPLE_APPS = ROOT / "apps.example.json"                             # the starter copied to apps.json
 DUMMY = Path(__file__).resolve().parent / "dummy_app.py"
 DUMMY_STOP = Path(__file__).resolve().parent / "dummy_stop.py"
 IS_WINDOWS = sys.platform == "win32"

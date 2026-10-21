@@ -1,7 +1,11 @@
 # App Launcher
 
-One small window that starts my own tools with one click. Plain Python + tkinter, nothing to install. Everything lives in this
-folder (`F:\ClodCode\launcher`).
+One small window that starts your own tools with one click. Plain Python + tkinter, nothing to install. Everything lives in this
+folder.
+
+Your app list is `apps.json` in this folder. It is yours alone: it is not in git, so
+`git pull` never changes it. The first start makes it from `apps.example.json`
+(one Notepad card, as an example); add your own apps with **+ Add app**.
 
 ## Recommended companions (optional)
 
@@ -192,17 +196,20 @@ Web pages cannot be detected as running, so those entries have no dot.
 
 Next to `"apps"`, the file may also hold `"theme"` and `"layout"` (see above).
 
-## What is in the list now
+## Your list and git
 
-UI Report Tool, UtilityBelt, Screener shell, Ekxel (Sheets), Codebase
-Dashboard, Claude Museum. Each has a `_note` saying how it starts and stops.
+`apps.json` is in `.gitignore`, so your apps and their paths stay on your PC.
+`apps.example.json` is the starter the launcher copies when there is no
+`apps.json` yet (delete `apps.json` to start over). `add_companions.py` writes
+only to `apps.json`.
 
 ## Files
 
 | File | What |
 | --- | --- |
 | `launcher.pyw` | entry point (runs with no console window) |
-| `apps.json` | the app list |
+| `apps.json` | your app list (made on first start; not in git) |
+| `apps.example.json` | the starter list copied to `apps.json` on first start |
 | `launcher.ico`, `make_icon.py` | the icon and the script that draws it (`python make_icon.py`) |
 | `install-shortcut.ps1` | creates the one Start menu shortcut (`-Remove` deletes it) |
 | `add_companions.py` | adds UtilityBelt, UI Report Tool, Ekxel and Codebase Dashboard to `apps.json` with this PC's paths (see "Recommended companions") |

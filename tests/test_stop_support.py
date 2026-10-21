@@ -56,8 +56,8 @@ class StopFieldTests(support.TmpDirTestCase):
 class ShippedFileStopTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.raw = json.loads((support.ROOT / "apps.json").read_text(encoding="utf-8"))
-        cls.apps = {a.name: a for a in config.load_apps(support.ROOT / "apps.json").apps}
+        cls.raw = json.loads(support.EXAMPLE_APPS.read_text(encoding="utf-8"))   # the starter apps.json
+        cls.apps = {a.name: a for a in config.load_apps(support.SAMPLE_APPS).apps}
 
     def test_help_documents_both_new_fields(self):
         for field in ("stop_command", "stop_args"):
@@ -70,8 +70,8 @@ class ShippedFileStopTests(unittest.TestCase):
 
     def test_ui_report_tool_is_set_up_as_asked(self):
         app = self.apps["UI Report Tool"]
-        self.assertEqual(app.stop_command, r"G:\UI Report Tool\.venv\Scripts\pythonw.exe")
-        self.assertEqual(app.stop_args, (r"G:\UI Report Tool\launch.pyw", "--quit"))
+        self.assertEqual(app.stop_command, r"C:\Tools\UI Report Tool\.venv\Scripts\pythonw.exe")
+        self.assertEqual(app.stop_args, (r"C:\Tools\UI Report Tool\launch.pyw", "--quit"))
 
     def test_sheets_quits_through_its_launcher(self):
         app = self.apps["Sheets"]

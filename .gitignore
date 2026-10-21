@@ -6,3 +6,7 @@ __pycache__/
 launcher.log
 .tmp/
 .pip-cache/
+
+# Each person's own app list (paths on their PC). The first start copies apps.example.json to it.
+apps.json
+apps.json.tmp

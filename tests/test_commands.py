@@ -173,12 +173,12 @@ class ErrorTests(support.TmpDirTestCase):
         self.assertLess(len(str(ctx.exception)), 200)
 
 
-class ShippedAppsMatchTheirShortcuts(unittest.TestCase):
-    """The four requested entries must launch exactly like the user's existing Start menu shortcuts."""
+class SampleAppsLaunchLikeTheirShortcuts(unittest.TestCase):
+    """Real-world-shaped entries (tests/sample_apps.json) build the command lines their Start menu shortcuts use."""
 
     @classmethod
     def setUpClass(cls):
-        cls.apps = {a.name: a for a in config.load_apps(support.ROOT / "apps.json").apps}
+        cls.apps = {a.name: a for a in config.load_apps(support.SAMPLE_APPS).apps}
 
     def plan(self, name):
         return build_plan(self.apps[name], check=False)
@@ -186,52 +186,42 @@ class ShippedAppsMatchTheirShortcuts(unittest.TestCase):
     def test_ui_report_tool(self):
         plan = self.plan("UI Report Tool")
         self.assertEqual(plan.cmdline,
-                         r'"G:\UI Report Tool\.venv\Scripts\pythonw.exe" "G:\UI Report Tool\launch.pyw"')
-        self.assertEqual(plan.cwd, r"G:\UI Report Tool")
+                         r'"C:\Tools\UI Report Tool\.venv\Scripts\pythonw.exe" "C:\Tools\UI Report Tool\launch.pyw"')
+        self.assertEqual(plan.cwd, r"C:\Tools\UI Report Tool")
         self.assertFalse(plan.has_console)
-        self.assertEqual(self.apps["UI Report Tool"].icon, r"G:\UI Report Tool\UIReportTool.ico")
+        self.assertEqual(self.apps["UI Report Tool"].icon, r"C:\Tools\UI Report Tool\UIReportTool.ico")
 
     def test_utilitybelt_opens_in_windows_terminal_focus_mode_like_its_shortcut(self):
         plan = self.plan("UtilityBelt")
         self.assertEqual(plan.cmdline,
                          os.path.expandvars(r"%LOCALAPPDATA%\Microsoft\WindowsApps\wt.exe")
                          + r" --focus -w new --title UtilityBelt"
-                         r" -d F:\ClodCode\utilitybelt cmd /c F:\ClodCode\utilitybelt\belt.cmd")
-        self.assertEqual(plan.cwd, r"F:\ClodCode\utilitybelt")
+                         r" -d C:\Tools\utilitybelt cmd /c C:\Tools\utilitybelt\belt.cmd")
+        self.assertEqual(plan.cwd, r"C:\Tools\utilitybelt")
         self.assertFalse(plan.has_console)  # Windows Terminal makes the window itself
         self.assertEqual(plan.window, "normal")
 
     def test_utilitybelt_mini_starts_minimized_like_its_shortcut(self):
         plan = self.plan("UtilityBelt Mini")
-        self.assertEqual(plan.cmdline, r"C:\Windows\System32\cmd.exe /c F:\ClodCode\utilitybelt\belt-mini.cmd")
-        self.assertEqual(plan.cwd, r"F:\ClodCode\utilitybelt")
+        self.assertEqual(plan.cmdline, r"C:\Windows\System32\cmd.exe /c C:\Tools\utilitybelt\belt-mini.cmd")
+        self.assertEqual(plan.cwd, r"C:\Tools\utilitybelt")
         self.assertTrue(plan.has_console)
         self.assertEqual(plan.window, "minimized")
 
-    def test_screener_shell(self):
-        plan = self.plan("Screener shell")
+    def test_dev_shell(self):
+        plan = self.plan("Dev shell")
         self.assertEqual(plan.cmdline,
                          r'''C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoExit -ExecutionPolicy Bypass '''
-                         r'''-Command ". (Join-Path $env:USERPROFILE 'Python\screener-jobs\shell\screener-shell.ps1')"''')
-        self.assertEqual(plan.cwd, os.path.expandvars(r"%USERPROFILE%\Python\Screener-v2"))
+                         r'''-Command ". (Join-Path $env:USERPROFILE 'scripts\dev-shell.ps1')"''')
+        self.assertEqual(plan.cwd, os.path.expandvars(r"%USERPROFILE%\projects\myproject"))
         self.assertTrue(plan.has_console)
 
     def test_suggested_html_entries_open_in_the_default_app(self):
-        for name in ("Fractal Flame", "Vortex Street", "Claude Museum"):
+        for name in ("Demo page", "Docs page", "Notes page"):
             with self.subTest(name):
                 plan = self.plan(name)
                 self.assertEqual(plan.mode, "open")
                 self.assertTrue(plan.target.lower().endswith(".html"))
-
-    def test_every_target_exists_on_this_machine(self):
-        missing = []
-        for name, app in self.apps.items():
-            try:
-                build_plan(app)
-            except LaunchError as exc:
-                missing.append(f"{name}: {exc}")
-        if missing:
-            self.skipTest("not all targets are present here: " + "; ".join(missing))
 
 
 if __name__ == "__main__":

@@ -21,6 +21,8 @@ import os
 import sys
 from pathlib import Path
 
+from applauncher import config
+
 HERE = Path(__file__).resolve().parent
 UTILITYBELT_NAMES = ("utilitybelt",)
 UI_REPORT_NAMES = ("ui-report-tool", "UI Report Tool", "ui_report_tool")
@@ -109,8 +111,10 @@ def dashboard_entry(folder: Path) -> dict:
 
 
 def add_entries(apps_json: Path, entries: list[dict]) -> list[str]:
-    """Put `entries` into apps.json, replacing any entry with the same name. Returns what changed."""
-    data = json.loads(apps_json.read_text(encoding="utf-8")) if apps_json.exists() else {"apps": []}
+    """Put `entries` into apps.json, replacing any entry with the same name. Returns what changed.
+    No apps.json yet: it starts as a copy of apps.example.json, like the launcher's first start."""
+    text = apps_json.read_text(encoding="utf-8-sig") if apps_json.exists() else config.skeleton_json()
+    data = json.loads(text)
     apps = data.setdefault("apps", [])
     changes = []
     for entry in entries:

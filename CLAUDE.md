@@ -34,9 +34,11 @@ Offer to set them up. If they say yes:
 
 If they decline, don't bring it up again.
 
-## apps.json in this repo
+## apps.json is local, never commit it
 
-The committed `apps.json` is the author's own list, with the author's paths.
-On another PC, entries pointing at folders that don't exist just show a "not
-found" message when clicked. Help the user replace them with their own apps;
-**Edit list** opens the file.
+`apps.json` is each person's own list with their own paths, so it is in
+`.gitignore`. The first start (and `add_companions.py`) creates it as a copy of
+`apps.example.json` (one Notepad example). Never `git add` `apps.json`, and keep
+real paths, user names and private tool names out of `apps.example.json`, the
+README and the tests (tests use `tests/sample_apps.json`, neutral paths).
+Help the user add their own apps with **+ Add app**; **Edit list** opens the file.

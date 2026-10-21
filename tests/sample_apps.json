@@ -1,0 +1,67 @@
+{
+  "_note": "A made-up app list for the tests (the real apps.json is each person's own and not in git). Paths are neutral examples; nothing here has to exist.",
+  "theme": "system",
+  "apps": [
+    {
+      "name": "UI Report Tool",
+      "command": "C:\\Tools\\UI Report Tool\\.venv\\Scripts\\pythonw.exe",
+      "args": ["C:\\Tools\\UI Report Tool\\launch.pyw"],
+      "working_dir": "C:\\Tools\\UI Report Tool",
+      "icon": "C:\\Tools\\UI Report Tool\\UIReportTool.ico",
+      "needs_console": false,
+      "match": ["ui report tool", "launch.pyw"],
+      "stop_command": "C:\\Tools\\UI Report Tool\\.venv\\Scripts\\pythonw.exe",
+      "stop_args": ["C:\\Tools\\UI Report Tool\\launch.pyw", "--quit"]
+    },
+    {
+      "name": "UtilityBelt",
+      "command": "%LOCALAPPDATA%\\Microsoft\\WindowsApps\\wt.exe",
+      "args": ["--focus", "-w", "new", "--title", "UtilityBelt", "-d", "C:\\Tools\\utilitybelt",
+               "cmd", "/c", "C:\\Tools\\utilitybelt\\belt.cmd"],
+      "working_dir": "C:\\Tools\\utilitybelt",
+      "icon": "C:\\Windows\\System32\\imageres.dll,144",
+      "needs_console": false,
+      "match": ["utilitybelt\\belt.py"]
+    },
+    {
+      "name": "UtilityBelt Mini",
+      "command": "C:\\Windows\\System32\\cmd.exe",
+      "args": ["/c", "C:\\Tools\\utilitybelt\\belt-mini.cmd"],
+      "working_dir": "C:\\Tools\\utilitybelt",
+      "icon": "C:\\Windows\\System32\\imageres.dll,144",
+      "needs_console": true,
+      "window": "minimized",
+      "match": ["belt.py", "--mini"]
+    },
+    {
+      "name": "Dev shell",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+      "args": ["-NoExit", "-ExecutionPolicy", "Bypass", "-Command",
+               ". (Join-Path $env:USERPROFILE 'scripts\\dev-shell.ps1')"],
+      "working_dir": "%USERPROFILE%\\projects\\myproject",
+      "needs_console": true,
+      "match": ["dev-shell.ps1"]
+    },
+    {
+      "name": "Sheets",
+      "command": "C:\\Tools\\sheets\\.venv\\Scripts\\pythonw.exe",
+      "args": ["C:\\Tools\\sheets\\launch.pyw"],
+      "working_dir": "C:\\Tools\\sheets",
+      "needs_console": false,
+      "match": ["sheets\\launch.pyw"],
+      "stop_command": "C:\\Tools\\sheets\\.venv\\Scripts\\pythonw.exe",
+      "stop_args": ["C:\\Tools\\sheets\\launch.pyw", "--quit"]
+    },
+    {
+      "name": "UtilityBelt Dash",
+      "command": "C:\\Windows\\System32\\cmd.exe",
+      "args": ["/c", "C:\\Tools\\utilitybelt\\dash.cmd"],
+      "working_dir": "C:\\Tools\\utilitybelt",
+      "needs_console": true,
+      "launch_all": false
+    },
+    {"name": "Demo page", "command": "C:\\Tools\\pages\\demo.html", "launch_all": false},
+    {"name": "Docs page", "command": "C:\\Tools\\pages\\docs.html", "launch_all": false},
+    {"name": "Notes page", "command": "C:\\Tools\\pages\\notes.html", "launch_all": false}
+  ]
+}

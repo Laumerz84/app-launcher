@@ -3,7 +3,7 @@ import contextlib
 import io
 import json
 
-import support  # noqa: F401  (sys.path + temp folders on F:)
+import support  # noqa: F401  (sys.path + temp folders in .tmp)
 
 import add_companions
 from applauncher import config
@@ -27,7 +27,7 @@ class AddCompanionsTest(support.TmpDirTestCase):
             "_help": {"name": "Text on the button."},
             "apps": [
                 {"name": "Notepad", "command": "notepad"},
-                {"name": "UI Report Tool", "command": r"G:\someone else\pythonw.exe"},
+                {"name": "UI Report Tool", "command": r"D:\someone else\pythonw.exe"},
             ],
         }), encoding="utf-8")
 

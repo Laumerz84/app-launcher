@@ -156,11 +156,11 @@ class SkeletonTests(support.TmpDirTestCase):
 
 
 class ShippedFileTests(unittest.TestCase):
-    """The apps.json that ships with the launcher."""
+    """apps.example.json: the starter copied to apps.json on first start (apps.json itself is not in git)."""
 
     @classmethod
     def setUpClass(cls):
-        cls.path = support.ROOT / "apps.json"
+        cls.path = support.EXAMPLE_APPS
         cls.raw = json.loads(cls.path.read_text(encoding="utf-8"))
         cls.result = config.load_apps(cls.path)
 
@@ -173,21 +173,6 @@ class ShippedFileTests(unittest.TestCase):
         self.assertEqual(next(iter(self.raw)), "_help")
         for field in ("name", "command", "args", "working_dir", "icon", "needs_console"):
             self.assertIn(field, self.raw["_help"])
-
-    def test_the_requested_apps_come_first_in_order(self):
-        names = [a.name for a in self.result.apps]
-        self.assertEqual(names[:5], ["UI Report Tool", "UtilityBelt", "UtilityBelt Mini", "Screener shell", "Sheets"])
-
-    def test_sheets_is_kept_out_of_launch_all(self):
-        sheets = next(a for a in self.result.apps if a.name == "Sheets")
-        self.assertFalse(sheets.launch_all)
-
-    def test_suggested_entries_are_marked_and_kept_out_of_launch_all(self):
-        suggested = [a for a in self.result.apps[5:]]
-        self.assertTrue(suggested)
-        for app in suggested:
-            self.assertIn("Suggested", app.note, app.name)
-            self.assertFalse(app.launch_all, app.name)
 
     def test_at_most_nine_apps_have_number_keys_but_list_is_short(self):
         self.assertLessEqual(len(self.result.apps), 9)

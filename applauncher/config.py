@@ -325,10 +325,22 @@ def set_top_level(path: str | os.PathLike[str], key: str, value: Any) -> None:
     _write_doc(path, data)
 
 
+EXAMPLE_FILE = Path(__file__).resolve().parent.parent / "apps.example.json"
+
+
 def skeleton_json() -> str:
-    """Text for a fresh apps.json (used only if the file has been deleted)."""
+    """Text for a fresh apps.json: a copy of apps.example.json (shipped in git; apps.json itself is
+    each person's own and never committed), or a built-in starter if the example is missing or broken."""
+    try:
+        text = EXAMPLE_FILE.read_text(encoding="utf-8-sig")
+        if parse_text(text).ok:
+            return text
+    except (OSError, UnicodeDecodeError):
+        pass
     data = {
         "_help": HELP_TEXT,
+        "theme": "system",
+        "layout": {},
         "apps": [
             {
                 "name": "Notepad",
@@ -341,7 +353,7 @@ def skeleton_json() -> str:
 
 
 def ensure_file(path: str | os.PathLike[str]) -> bool:
-    """Create a starter apps.json if there is none. True if it was created."""
+    """Create a starter apps.json (from apps.example.json) if there is none. True if it was created."""
     path = Path(path)
     if path.exists():
         return False

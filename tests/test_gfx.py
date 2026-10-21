@@ -114,8 +114,8 @@ class BadgeTests(unittest.TestCase):
     def test_letter_and_colour_are_stable(self):
         self.assertEqual(gfx.badge_letter("  fractal flame"), "F")
         self.assertEqual(gfx.badge_letter("!!!"), "?")
-        self.assertEqual(gfx.badge_color("Museum"), gfx.badge_color("museum "))
-        self.assertNotEqual(gfx.badge_color("Museum"), gfx.badge_color("Vortex Street"))
+        self.assertEqual(gfx.badge_color("Notes"), gfx.badge_color("notes "))
+        self.assertNotEqual(gfx.badge_color("Notes"), gfx.badge_color("Docs page"))
         self.assertRegex(gfx.badge_color("x"), r"^#[0-9a-f]{6}$")
 
 
@@ -140,7 +140,7 @@ class IconExtractionTests(unittest.TestCase):
     def test_missing_or_empty_specs_give_none(self):
         self.assertIsNone(gfx.extract_icon_png(r"C:\no\such\file.ico", 32))
         self.assertIsNone(gfx.extract_icon_png("", 32))
-        self.assertIsNone(gfx.extract_icon_png(str(support.ROOT / "apps.json"), 32))  # not an icon
+        self.assertIsNone(gfx.extract_icon_png(str(support.EXAMPLE_APPS), 32))  # not an icon
 
     def test_icon_spec_parsing(self):
         self.assertEqual(gfx.parse_icon_spec(r"C:\a\b.dll,144"), (r"C:\a\b.dll", 144))

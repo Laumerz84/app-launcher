@@ -11,8 +11,8 @@ from applauncher.commands import CREATE_NO_WINDOW
 from applauncher.config import App
 from applauncher.procs import Proc
 
-UB = r"F:\ClodCode\utilitybelt"
-SHELL_PS1 = os.path.expandvars(r"%USERPROFILE%\Python\screener-jobs\shell\screener-shell.ps1")
+UB = r"C:\Tools\utilitybelt"
+SHELL_PS1 = os.path.expandvars(r"%USERPROFILE%\scripts\dev-shell.ps1")
 
 
 def p(pid, name, cmdline="", exe=""):
@@ -21,48 +21,48 @@ def p(pid, name, cmdline="", exe=""):
 
 # What the real processes look like (taken from a live process listing).
 UI_REPORT_PROCS = [
-    p(10, "pythonw.exe", r'"G:\UI Report Tool\.venv\Scripts\pythonw.exe" "G:\UI Report Tool\launch.pyw"'),
-    p(11, "pythonw.exe", r'"C:\Users\x\AppData\Local\Python\pythonw.exe" "G:\UI Report Tool\launch.pyw"'),
+    p(10, "pythonw.exe", r'"C:\Tools\UI Report Tool\.venv\Scripts\pythonw.exe" "C:\Tools\UI Report Tool\launch.pyw"'),
+    p(11, "pythonw.exe", r'"C:\Users\x\AppData\Local\Python\pythonw.exe" "C:\Tools\UI Report Tool\launch.pyw"'),
 ]
 BELT_PROCS = [
-    p(20, "cmd.exe", r'C:\Windows\System32\cmd.exe /c "F:\ClodCode\utilitybelt\belt.cmd"'),
-    p(21, "python.exe", r'python  "F:\ClodCode\utilitybelt\belt.py"'),
+    p(20, "cmd.exe", r'C:\Windows\System32\cmd.exe /c "C:\Tools\utilitybelt\belt.cmd"'),
+    p(21, "python.exe", r'python  "C:\Tools\utilitybelt\belt.py"'),
 ]
 MINI_PROCS = [p(30, "python.exe", "python belt.py --mini")]
-SCREENER_PROCS = [p(40, "powershell.exe",
+SHELL_PROCS = [p(40, "powershell.exe",
                     r'''"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -NoExit -ExecutionPolicy Bypass '''
                     r'''-Command ". '%s'"''' % SHELL_PS1)]
 NOISE = [p(1, "explorer.exe", r"C:\Windows\explorer.exe"),
          p(2, "python.exe", r"python -m http.server"),
          p(3, "cmd.exe", r"C:\WINDOWS\system32\cmd.exe /d /s /c desktop-commander"),
          p(4, "powershell.exe", r"C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe"),
-         p(5, "notepad.exe", r"notepad.exe F:\ClodCode\utilitybelt\belt.cmd")]  # an editor merely has the file open
+         p(5, "notepad.exe", r"notepad.exe C:\Tools\utilitybelt\belt.cmd")]  # an editor merely has the file open
 
 
 class ShippedAppsDetectionTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.apps = {a.name: a for a in config.load_apps(support.ROOT / "apps.json").apps}
+        cls.apps = {a.name: a for a in config.load_apps(support.SAMPLE_APPS).apps}
 
     def state(self, name, procs_list):
         return procs.running_states([self.apps[name]], procs_list)[0]
 
     def test_each_requested_app_is_recognised_when_running(self):
         cases = {"UI Report Tool": UI_REPORT_PROCS, "UtilityBelt": BELT_PROCS, "UtilityBelt Mini": MINI_PROCS,
-                 "Screener shell": SCREENER_PROCS}
+                 "Dev shell": SHELL_PROCS}
         for name, running in cases.items():
             with self.subTest(name):
                 self.assertIs(self.state(name, NOISE + running), True)
 
     def test_each_is_not_running_among_only_noise(self):
-        for name in ("UI Report Tool", "UtilityBelt", "UtilityBelt Mini", "Screener shell", "UtilityBelt Dash"):
+        for name in ("UI Report Tool", "UtilityBelt", "UtilityBelt Mini", "Dev shell", "UtilityBelt Dash"):
             with self.subTest(name):
                 self.assertIs(self.state(name, NOISE), False)
 
     def test_apps_do_not_mistake_each_other(self):
-        everything = UI_REPORT_PROCS + BELT_PROCS + SCREENER_PROCS  # no mini strip running
+        everything = UI_REPORT_PROCS + BELT_PROCS + SHELL_PROCS  # no mini strip running
         self.assertIs(self.state("UtilityBelt Mini", everything), False)
-        self.assertIs(self.state("UtilityBelt", MINI_PROCS + SCREENER_PROCS), False)
+        self.assertIs(self.state("UtilityBelt", MINI_PROCS + SHELL_PROCS), False)
 
     def test_mini_is_found_by_its_python_process_not_the_short_lived_cmd(self):
         self.assertIs(self.state("UtilityBelt Mini", [p(1, "cmd.exe", r'cmd.exe /c "%s\belt-mini.cmd"' % UB)]), False)
@@ -73,16 +73,16 @@ class ShippedAppsDetectionTests(unittest.TestCase):
         self.assertIs(self.state("UI Report Tool", desktop_copy), True)
 
     def test_web_pages_cannot_be_detected(self):
-        self.assertIsNone(self.state("Fractal Flame", NOISE))
+        self.assertIsNone(self.state("Demo page", NOISE))
 
     def test_slash_direction_and_case_do_not_matter(self):
-        procs_list = [p(1, "PYTHON.EXE", 'python "f:/clodcode/UTILITYBELT/Belt.py"')]
+        procs_list = [p(1, "PYTHON.EXE", 'python "c:/tools/UTILITYBELT/Belt.py"')]
         self.assertIs(self.state("UtilityBelt", procs_list), True)
 
     def test_utilitybelt_is_its_python_not_the_cmd_or_terminal_around_it(self):
-        around = [p(1, "cmd.exe", r'cmd /c "F:\ClodCode\utilitybelt\belt.cmd"'),
-                  p(2, "WindowsTerminal.exe", r"WindowsTerminal.exe --focus -w new -d F:\ClodCode\utilitybelt "
-                                              r"cmd /c F:\ClodCode\utilitybelt\belt.cmd")]
+        around = [p(1, "cmd.exe", r'cmd /c "C:\Tools\utilitybelt\belt.cmd"'),
+                  p(2, "WindowsTerminal.exe", r"WindowsTerminal.exe --focus -w new -d C:\Tools\utilitybelt "
+                                              r"cmd /c C:\Tools\utilitybelt\belt.cmd")]
         self.assertIs(self.state("UtilityBelt", around), False)
 
 
