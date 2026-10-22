@@ -1,7 +1,8 @@
-"""add_companions.py: puts UtilityBelt and UI Report Tool into apps.json with this PC's paths."""
+"""add_companions.py: puts the recommended companions into apps.json with this PC's paths."""
 import contextlib
 import io
 import json
+from unittest import mock
 
 import support  # noqa: F401  (sys.path + temp folders in .tmp)
 
@@ -15,7 +16,11 @@ class AddCompanionsTest(support.TmpDirTestCase):
         super().setUp()
         self.launcher = self.tmp / "launcher"
         self.launcher.mkdir()
-        self.belt = self.tmp / "utilitybelt"
+        # Look for unnamed companions next to the test launcher, not the real one (its neighbours are real clones).
+        patcher = mock.patch.object(add_companions, "HERE", self.launcher)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.belt =self.tmp / "utilitybelt"
         self.belt.mkdir()
         (self.belt / "belt.cmd").write_text("@echo off\n", encoding="utf-8")
         self.report = self.tmp / "ui-report-tool"
@@ -87,6 +92,22 @@ class AddCompanionsTest(support.TmpDirTestCase):
         self.assertIn("setup.bat", out)
         self.assertIn("UtilityBelt not found", out)
         self.assertNotIn("UtilityBelt", self.apps())
+
+    def test_adds_the_updater_so_only_its_window_counts_as_running(self):
+        updater = self.tmp / "Updater"
+        updater.mkdir()
+        (updater / "updater.py").write_text("", encoding="utf-8")
+        self.assertEqual(add_companions.find_sibling(add_companions.UPDATER_NAMES, "updater.py", self.launcher),
+                         updater)
+        code, out = self.run_main("--updater", str(updater))
+        self.assertEqual(code, 0)
+        self.assertIn("added GitHub Updater", out)
+        entry = self.apps()["GitHub Updater"]
+        self.assertEqual(entry["args"], [str(updater / "updater.py"), "--window"])
+        self.assertEqual(entry["match"], [r"Updater\updater.py", "--window"])  # never the --background checker
+        self.assertFalse(entry["needs_console"])
+        loaded = {a.name: a for a in config.load_apps(self.apps_json).apps}
+        self.assertTrue(build_plan(loaded["GitHub Updater"], check=True).cmdline)
 
     def test_nothing_found_leaves_apps_json_untouched(self):
         before = self.apps_json.read_text(encoding="utf-8")

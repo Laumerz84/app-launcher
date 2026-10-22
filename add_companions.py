@@ -1,12 +1,13 @@
-"""Add the recommended companion tools to apps.json: UtilityBelt, UI Report Tool, Ekxel and
-Codebase Dashboard.
+"""Add the recommended companion tools to apps.json: UtilityBelt, UI Report Tool, Ekxel,
+Codebase Dashboard and GitHub Updater.
 
-Both are optional. Clone them next to this folder (or anywhere, and pass the paths):
+All are optional. Clone them next to this folder (or anywhere, and pass the paths):
 
     git clone https://github.com/Laumerz84/utilitybelt.git
     git clone https://github.com/Laumerz84/ui-report-tool.git
     git clone https://github.com/Laumerz84/sheets.git
     git clone https://github.com/Laumerz84/codebase-dashboard.git
+    git clone https://github.com/Laumerz84/updater.git
     python add_companions.py
     python add_companions.py --utilitybelt D:\\tools\\utilitybelt --ui-report-tool D:\\tools\\ui-report-tool
 
@@ -29,6 +30,7 @@ UI_REPORT_NAMES = ("ui-report-tool", "UI Report Tool", "ui_report_tool")
 EKXEL_NAMES = ("sheets", "Sheets", "ekxel", "Ekxel")
 EKXEL_MARKER = "sheets/app.py"
 DASHBOARD_NAMES = ("codebase-dashboard", "Codebase Dashboard", "codebase_dashboard")
+UPDATER_NAMES = ("updater", "Updater", "github-updater")
 EKXEL_NAME = "Macrosoft Ekxel® 2003 Private Reserve Special Cuvée"
 
 
@@ -110,6 +112,24 @@ def dashboard_entry(folder: Path) -> dict:
     }
 
 
+def updater_entry(folder: Path) -> dict:
+    here = Path(sys.executable)
+    pythonw = here.with_name("pythonw.exe")
+    script = str(folder / "updater.py")
+    return {
+        "name": "GitHub Updater",
+        "command": str(pythonw if pythonw.is_file() else here),
+        "args": [script, "--window"],
+        "working_dir": str(folder),
+        "needs_console": False,
+        "match": [str(Path(folder.name) / "updater.py"), "--window"],
+        "_note": "Recommended companion (github.com/Laumerz84/updater): checks every GitHub clone for new commits "
+                 "and offers to install them. Added by add_companions.py; standard library only. The match "
+                 "includes --window so the daily checker that runs at login (updater.py --background) never "
+                 "lights the dot and Stop never ends it.",
+    }
+
+
 def add_entries(apps_json: Path, entries: list[dict]) -> list[str]:
     """Put `entries` into apps.json, replacing any entry with the same name. Returns what changed.
     No apps.json yet: it starts as a copy of apps.example.json, like the launcher's first start."""
@@ -132,11 +152,13 @@ def add_entries(apps_json: Path, entries: list[dict]) -> list[str]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(description="Add UtilityBelt, UI Report Tool, Ekxel and Codebase Dashboard to the App Launcher.")
+    ap = argparse.ArgumentParser(description="Add UtilityBelt, UI Report Tool, Ekxel, Codebase Dashboard and "
+                                             "GitHub Updater to the App Launcher.")
     ap.add_argument("--utilitybelt", metavar="FOLDER", help="where UtilityBelt is cloned")
     ap.add_argument("--ui-report-tool", metavar="FOLDER", help="where UI Report Tool is cloned")
     ap.add_argument("--ekxel", metavar="FOLDER", help="where Ekxel (the sheets repo) is cloned")
     ap.add_argument("--codebase-dashboard", metavar="FOLDER", help="where Codebase Dashboard is cloned")
+    ap.add_argument("--updater", metavar="FOLDER", help="where GitHub Updater is cloned")
     ap.add_argument("--apps-json", metavar="FILE", default=str(HERE / "apps.json"), help=argparse.SUPPRESS)
     args = ap.parse_args(argv)
 
@@ -145,6 +167,7 @@ def main(argv: list[str] | None = None) -> int:
     ekxel = Path(args.ekxel) if args.ekxel else find_sibling(EKXEL_NAMES, EKXEL_MARKER, HERE)
     dash = Path(args.codebase_dashboard) if args.codebase_dashboard \
         else find_sibling(DASHBOARD_NAMES, "dashboard.py", HERE)
+    updater = Path(args.updater) if args.updater else find_sibling(UPDATER_NAMES, "updater.py", HERE)
     entries, notes = [], []
     if belt and (belt / "belt.cmd").is_file():
         entries.append(utilitybelt_entry(belt.resolve()))
@@ -174,6 +197,12 @@ def main(argv: list[str] | None = None) -> int:
     else:
         notes.append("Codebase Dashboard not found - clone https://github.com/Laumerz84/codebase-dashboard.git "
                      "next to this folder or pass --codebase-dashboard FOLDER.")
+
+    if updater and (updater / "updater.py").is_file():
+        entries.append(updater_entry(updater.resolve()))
+    else:
+        notes.append("GitHub Updater not found - clone https://github.com/Laumerz84/updater.git next to this "
+                     "folder or pass --updater FOLDER.")
 
     if entries:
         for change in add_entries(Path(args.apps_json), entries):

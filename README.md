@@ -9,7 +9,7 @@ Your app list is `apps.json` in this folder. It is yours alone: it is not in git
 
 ## Recommended companions (optional)
 
-The launcher works on its own, but it was made alongside four tools that are
+The launcher works on its own, but it was made alongside five tools that are
 worth having with it:
 
 - **[UtilityBelt](https://github.com/Laumerz84/utilitybelt)**: a terminal dashboard
@@ -20,6 +20,8 @@ worth having with it:
   (opens .xlsx/.xls/.csv) with a Claude chat panel that can edit the open workbook.
 - **[Codebase Dashboard](https://github.com/Laumerz84/codebase-dashboard)**: point it at a
   folder and see its code stats and git activity in your browser.
+- **[GitHub Updater](https://github.com/Laumerz84/updater)**: checks every GitHub clone
+  on this PC once a day and offers to install new commits (fast-forward only).
 
 To add them, clone them next to this folder, set them up once, then let the
 launcher add itself the entries with the right paths for your PC:
@@ -30,6 +32,7 @@ git clone https://github.com/Laumerz84/utilitybelt.git
 git clone https://github.com/Laumerz84/ui-report-tool.git
 git clone https://github.com/Laumerz84/sheets.git
 git clone https://github.com/Laumerz84/codebase-dashboard.git
+git clone https://github.com/Laumerz84/updater.git
 pip install -r utilitybelt\requirements.txt
 ui-report-tool\setup.bat
 sheets\setup.bat
@@ -37,11 +40,13 @@ cd launcher
 python add_companions.py
 ```
 
-`add_companions.py` finds the four folders next to this one (or pass
+`add_companions.py` finds the five folders next to this one (or pass
 `--utilitybelt FOLDER` / `--ui-report-tool FOLDER` / `--ekxel FOLDER` /
-`--codebase-dashboard FOLDER` if they live elsewhere), adds a card for each one it finds, and replaces any old entries
+`--codebase-dashboard FOLDER` / `--updater FOLDER` if they live elsewhere), adds a card for each one it finds, and replaces any old entries
 with those names. Everything else in `apps.json` is kept. UI Report Tool's and
 Ekxel's **Stop** ask them to quit politely (Ekxel still asks about unsaved work).
+GitHub Updater's card opens its window; its daily check at login is separate
+(`python updater.py --startup on` in its folder) and never shows as running.
 
 ## Use it
 
@@ -212,7 +217,7 @@ only to `apps.json`.
 | `apps.example.json` | the starter list copied to `apps.json` on first start |
 | `launcher.ico`, `make_icon.py` | the icon and the script that draws it (`python make_icon.py`) |
 | `install-shortcut.ps1` | creates the one Start menu shortcut (`-Remove` deletes it) |
-| `add_companions.py` | adds UtilityBelt, UI Report Tool, Ekxel and Codebase Dashboard to `apps.json` with this PC's paths (see "Recommended companions") |
+| `add_companions.py` | adds UtilityBelt, UI Report Tool, Ekxel, Codebase Dashboard and GitHub Updater to `apps.json` with this PC's paths (see "Recommended companions") |
 | `applauncher/` | the code: `config` (apps.json), `commands` (launching), `procs` (running detection), `stop` (the Stop button's logic), `ui`, `props` (Add app / Properties window), `flags` (finding an app's options), `gfx`, `theme`, `winutil`, `aumid` |
 | `tests/`, `run-tests.cmd` | unit tests (`run-tests.cmd`, or `python -m unittest discover -s tests`) |
 | `launcher.log` | a small rolling log (launches, problems with apps.json) |
