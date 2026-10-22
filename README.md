@@ -90,6 +90,33 @@ a wide window gives two or three columns or one horizontal row. Right-click >
 fits the cards until you drag it yourself; the list scrolls if it is taller than
 the window. The size is remembered in `apps.json` (`"layout"`).
 
+## Terminal edition
+
+Start menu > **App Launcher Terminal** (or `python terminal.py` from this folder) opens a
+console window. Type a program's name or number and press Enter to start it. Spaces, capitals
+and punctuation don't matter, and the start of a name is enough when only one program fits
+(`orion`, `rmd`, `14`). Any words after the name are passed to the program. The other commands
+are `list`, `info <name>`, `folder <name>`, `edit`, `refresh`, `cls`, `help` and `exit`.
+
+Its list is `apps.json` plus every project folder next to this one that has something runnable,
+so a new project appears with nothing to edit. `applauncher/discover.py` picks a project's entry
+point, taking the first of:
+- a `dist\*.exe` build
+- `start_app.py` or `launcher.py` (console)
+- `launch.pyw` or `launcher.pyw` (no console)
+- a Streamlit `app.py`, then `dashboard.py`
+- a main script, preferring one named like the folder, then `main.py` or `run.py`
+- a notebook
+
+A project's own `.venv` is used when there is one. An `apps.json` entry for a folder replaces
+whatever would be found there. Programs start through `applauncher/commands.py`, exactly as
+they do from the window, and keep running when the terminal closes.
+
+It is a Python console, not a PowerShell profile or `.ps1` file, because machine policy
+(AllSigned) blocks unsigned PowerShell scripts. The Start menu shortcut targets `python.exe`
+directly. Re-create it after a Python upgrade, with the same steps as `install-shortcut.ps1`
+but `python.exe` and `terminal.py`.
+
 ## Stopping an app
 
 Every card whose app is running (the green dot) has a small **Stop** button.
