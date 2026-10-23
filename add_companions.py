@@ -130,6 +130,25 @@ def updater_entry(folder: Path) -> dict:
     }
 
 
+def clipper_entry(folder: Path) -> dict:
+    """Clipper's card. Used by the GitHub Updater's installer (Clipper is in its catalog), not by main()."""
+    pythonw = str(folder / ".venv" / "Scripts" / "pythonw.exe")
+    launch = str(folder / "clipper.pyw")
+    return {
+        "name": "Clipper",
+        "command": pythonw,
+        "args": [launch],
+        "working_dir": str(folder),
+        "icon": str(folder / "clipper.ico"),
+        "needs_console": False,
+        "match": ["clipper.pyw"],
+        "stop_command": pythonw,
+        "stop_args": [launch, "--quit"],
+        "_note": "Recommended companion (github.com/Laumerz84/clipper): Medal-style instant replay, tray app; "
+                 "Alt+F10 saves the last 60 s (+ a Discord-sized copy). AMD graphics cards only. Stop = --quit.",
+    }
+
+
 def add_entries(apps_json: Path, entries: list[dict]) -> list[str]:
     """Put `entries` into apps.json, replacing any entry with the same name. Returns what changed.
     No apps.json yet: it starts as a copy of apps.example.json, like the launcher's first start."""
