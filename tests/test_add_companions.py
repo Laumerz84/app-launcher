@@ -20,9 +20,9 @@ class AddCompanionsTest(support.TmpDirTestCase):
         patcher = mock.patch.object(add_companions, "HERE", self.launcher)
         patcher.start()
         self.addCleanup(patcher.stop)
-        self.belt =self.tmp / "utilitybelt"
+        self.belt = self.tmp / "utilitybelt"
         self.belt.mkdir()
-        (self.belt / "belt.cmd").write_text("@echo off\n", encoding="utf-8")
+        (self.belt / "belt.py").write_text("", encoding="utf-8")
         self.report = self.tmp / "ui-report-tool"
         (self.report / ".venv" / "Scripts").mkdir(parents=True)
         (self.report / "launch.pyw").write_text("", encoding="utf-8")
@@ -46,12 +46,12 @@ class AddCompanionsTest(support.TmpDirTestCase):
         return {a["name"]: a for a in json.loads(self.apps_json.read_text(encoding="utf-8"))["apps"]}
 
     def test_finds_companions_cloned_next_to_the_launcher(self):
-        self.assertEqual(add_companions.find_sibling(add_companions.UTILITYBELT_NAMES, "belt.cmd", self.launcher),
+        self.assertEqual(add_companions.find_sibling(add_companions.UTILITYBELT_NAMES, "belt.py", self.launcher),
                          self.belt)
         self.assertEqual(add_companions.find_sibling(add_companions.UI_REPORT_NAMES, "launch.pyw", self.launcher),
                          self.report)
         (self.tmp / "empty").mkdir()
-        self.assertIsNone(add_companions.find_sibling(("empty",), "belt.cmd", self.launcher))
+        self.assertIsNone(add_companions.find_sibling(("empty",), "belt.py", self.launcher))
 
     def test_adds_both_with_this_pcs_paths_and_keeps_everything_else(self):
         code, out = self.run_main("--utilitybelt", str(self.belt), "--ui-report-tool", str(self.report))
@@ -68,7 +68,7 @@ class AddCompanionsTest(support.TmpDirTestCase):
         self.assertEqual(report["stop_args"], [str(self.report / "launch.pyw"), "--quit"])
         self.assertEqual(report["match"], [str(self.report / "launch.pyw")])
         belt = apps["UtilityBelt"]
-        self.assertEqual(belt["args"], ["/c", str(self.belt / "belt.cmd")])
+        self.assertEqual(belt["command"], str(self.belt / "belt.py"))  # not belt.cmd: cmd.exe may be blocked
         self.assertEqual(belt["match"], [str(self.belt / "belt.py")])
         self.assertTrue(belt["needs_console"])
 

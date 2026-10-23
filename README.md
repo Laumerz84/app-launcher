@@ -23,7 +23,12 @@ worth having with it:
 - **[GitHub Updater](https://github.com/Laumerz84/updater)**: checks every GitHub clone
   on this PC once a day and offers to install new commits (fast-forward only).
 
-To add them, clone them next to this folder, set them up once, then let the
+The quickest way is the GitHub Updater's installer, which does all of this with no
+questions (clone, libraries, Start menu shortcut, cards) and can be handed to Claude Code:
+clone https://github.com/Laumerz84/updater.git as `Updater` next to this folder and run
+`python Updater\install.py`. See its README.
+
+To do it by hand, clone them next to this folder, set them up once, then let the
 launcher add itself the entries with the right paths for your PC:
 
 ```

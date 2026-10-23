@@ -44,17 +44,17 @@ def find_sibling(names: tuple[str, ...], marker: str, base: Path) -> Path | None
 
 
 def utilitybelt_entry(folder: Path) -> dict:
-    f = str(folder)
+    script = str(folder / "belt.py")
     return {
         "name": "UtilityBelt",
-        "command": os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32", "cmd.exe"),
-        "args": ["/c", str(folder / "belt.cmd")],
-        "working_dir": f,
+        "command": script,
+        "working_dir": str(folder),
         "icon": r"C:\Windows\System32\imageres.dll,144",
         "needs_console": True,
-        "match": [str(folder / "belt.py")],
+        "match": [script],
         "_note": "Recommended companion (github.com/Laumerz84/utilitybelt). Added by add_companions.py; "
-                 "needs its packages once: pip install -r requirements.txt in its folder.",
+                 "needs its packages once: pip install -r requirements.txt in its folder. Runs belt.py in "
+                 "its own console rather than belt.cmd, which needs cmd.exe (blocked on some PCs).",
     }
 
 
@@ -162,14 +162,14 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--apps-json", metavar="FILE", default=str(HERE / "apps.json"), help=argparse.SUPPRESS)
     args = ap.parse_args(argv)
 
-    belt = Path(args.utilitybelt) if args.utilitybelt else find_sibling(UTILITYBELT_NAMES, "belt.cmd", HERE)
+    belt = Path(args.utilitybelt) if args.utilitybelt else find_sibling(UTILITYBELT_NAMES, "belt.py", HERE)
     report = Path(args.ui_report_tool) if args.ui_report_tool else find_sibling(UI_REPORT_NAMES, "launch.pyw", HERE)
     ekxel = Path(args.ekxel) if args.ekxel else find_sibling(EKXEL_NAMES, EKXEL_MARKER, HERE)
     dash = Path(args.codebase_dashboard) if args.codebase_dashboard \
         else find_sibling(DASHBOARD_NAMES, "dashboard.py", HERE)
     updater = Path(args.updater) if args.updater else find_sibling(UPDATER_NAMES, "updater.py", HERE)
     entries, notes = [], []
-    if belt and (belt / "belt.cmd").is_file():
+    if belt and (belt / "belt.py").is_file():
         entries.append(utilitybelt_entry(belt.resolve()))
     else:
         notes.append("UtilityBelt not found - clone https://github.com/Laumerz84/utilitybelt.git next to this "
